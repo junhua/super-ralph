@@ -1,0 +1,10 @@
+{
+  "name": "super-ralph",
+  "version": "0.1.0",
+  "description": "Unified autonomous development workflow combining ralph-planning, ralph-loop, and superpowers. Plan, execute, review, and fix — all fire-and-forget.",
+  "author": {
+    "name": "junhua",
+    "email": "junhua.viva@gmail.com"
+  },
+  "keywords": ["ralph-loop", "superpowers", "autonomous", "fire-and-forget", "tdd", "pr-review"]
+}
