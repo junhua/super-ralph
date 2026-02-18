@@ -75,19 +75,40 @@ fi
   - PRE-EXISTING failure (file NOT touched by review-fix commits): Log but do not block
   - FLAKY (passes on retry `$RUNNER test -- <file> 2>&1`): Minor
 
+**Summarize test output before passing to agents (IMPORTANT — prevents context exhaustion):**
+
+Do NOT paste raw test output into sub-agent prompts. Instead, create a concise summary:
+
+```
+Test Summary: [N] passed, [M] failed, [K] skipped
+
+Failures:
+1. [test-file-path] > [test-suite] > [test-name]
+   Error: [one-line error message — first line only]
+2. [test-file-path] > [test-suite] > [test-name]
+   Error: [one-line error message — first line only]
+
+Classification:
+- NEW (regression): [list test names]
+- PRE-EXISTING: [list test names]
+- FLAKY: [list test names]
+```
+
+Keep each failure to 2-3 lines maximum. Omit full stack traces — the issue-fixer can read the full output when it runs the test itself.
+
 ### 3. Run PR Review Agents
 
-Dispatch review agents via the Task tool:
+Dispatch review agents via the Task tool. **Use max_turns to prevent context exhaustion.**
 
-**Code Reviewer (sonnet model):**
+**Code Reviewer (sonnet model, max_turns: 20):**
 ```
 Review PR #[PR_NUMBER] for code quality issues.
 
 Read the diff: `gh pr diff [PR_NUMBER]`
 Read affected files for full context.
 
-Regression test results from this iteration:
-[PASTE TEST RESULTS HERE]
+Regression test summary:
+[PASTE SUMMARIZED TEST RESULTS — not raw output]
 
 Classify each finding:
 - Critical (>=90% confidence): Bugs, security issues, data loss, crashes
@@ -103,7 +124,7 @@ ISSUE: [description]
 FIX: [suggested fix approach]
 ```
 
-**Silent Failure Hunter (sonnet model):**
+**Silent Failure Hunter (sonnet model, max_turns: 20):**
 ```
 Hunt for silent failures in PR #[PR_NUMBER].
 
@@ -142,43 +163,55 @@ If BOTH conditions met:
 If either condition fails:
 - Proceed to Step 6
 
-### 6. Dispatch Issue Fixer
+### 6. Dispatch Issue Fixer (in batches)
 
-Dispatch an issue-fixer agent (Task tool, sonnet model):
+**CRITICAL: Dispatch issue-fixer agents in batches of at most 3 issues per dispatch.**
+
+Sub-agents cannot compact their context. A single dispatch with many issues will exhaust the context window as the agent reads files, runs tests, and commits for each issue. Batching prevents this.
+
+**Batching rules:**
+- Maximum 3 issues per issue-fixer dispatch
+- Process batches sequentially (not in parallel) to avoid git conflicts
+- Each batch gets its own Task dispatch with `max_turns: 30`
+- Critical issues go in the first batch(es), then Important
+- If a batch has fewer than 3 issues, that is fine
+
+**Example:** 2 Critical + 4 Important = 3 batches:
+- Batch 1 (max_turns: 30): 2 Critical + 1 Important
+- Batch 2 (max_turns: 30): 2 Important
+- Batch 3 (max_turns: 30): 1 Important
+
+**Prompt template for each batch:**
 
 ```
-You are fixing issues found during autonomous PR review and regression testing.
+You are fixing code review issues for PR #[PR_NUMBER]. This is batch [N] of [TOTAL].
 
-## Issues to Fix
+## Issues to Fix (max 3)
 
-[Paste all Critical findings first (including test failures), then Important findings.
-Include: severity, file, line, issue description, suggested fix.
-For test failures: include the test name, file path, error message, and stack trace.]
+[Paste ONLY this batch's findings. Include: severity, file, line, issue description, suggested fix.
+For test failures: include the test name, file path, and one-line error message.]
 
 ## Fix Process
 
-For each issue (Critical first, then Important):
-1. Read the file and surrounding context (at least 20 lines around the issue)
+For each issue:
+1. Read the file and 20 lines of surrounding context
 2. Understand the intent of the existing code
-3. Implement the fix
-4. Run the relevant test to verify the fix:
-   `bun test [test-file-path]`
-5. If no test exists and the fix is non-trivial, write a regression test
-6. Commit the fix:
-   `git add [files]`
-   `git commit -m "fix: [concise description] (review-fix)"`
-7. Push:
-   `git push`
+3. Implement the minimal fix
+4. Run the relevant test: `bun test [test-file-path]`
+5. Commit: `git add [files] && git commit -m "fix: [what] (review-fix)"`
+6. Push: `git push`
 
-## Rules
-- Fix Critical issues before Important ones (test failures are Critical)
-- One commit per fix (not one commit for all fixes)
-- Push after each commit
-- Run tests after each fix to ensure no regressions
-- If a fix is unclear, search the codebase for similar patterns
-- If truly stuck on a specific fix, skip it and add a comment:
-  `// TODO(review-fix): [description of issue and why fix was skipped]`
+## Context Economy Rules
+- Read only the lines you need — do NOT read entire files
+- Use targeted grep with head_limit (e.g., head_limit: 10) when searching
+- Do NOT trace full call chains unless the fix specifically requires it
+- Run only the specific test file, not the entire test suite
 - NEVER ask for human input
+```
+
+After each batch completes, verify the fixes were pushed before dispatching the next batch:
+```bash
+git log --oneline -5
 ```
 
 ### 7. Check for Oscillation
@@ -192,13 +225,13 @@ git log --oneline --grep="review-fix" -20
 
 If the same file has been fixed in 3+ consecutive review-fix iterations:
 - This indicates oscillation
-- Dispatch sme-brainstormer agents to analyze the root cause:
+- Dispatch sme-brainstormer agents to analyze the root cause (max_turns: 15):
 
 ```
 Two or more fixes are oscillating on [FILE]:
 
-Recent fix history:
-[paste relevant git log entries and diffs]
+Recent fix history (last 5 commits only):
+[paste ONLY the relevant git log entries — not full diffs, just commit messages and file names]
 
 Fixing one issue re-introduces another. This needs an architectural solution.
 Analyze the root cause and recommend a fix that resolves all oscillating issues simultaneously.

@@ -141,18 +141,24 @@ The ralph-loop Stop hook will handle subsequent iterations automatically.
 
 ## Review Agent Dispatch Templates
 
+All review agents use **max_turns: 20** and receive **summarized** test results (not raw output).
+
 ### Code Reviewer
 ```
 Task tool:
   subagent_type: pr-review-toolkit:code-reviewer
+  max_turns: 20
   description: "Review PR #N for code quality"
-  prompt: "Review the changes in this PR. Focus on bugs, logic errors, security vulnerabilities, and project convention violations. Only report issues with confidence >= 80."
+  prompt: "Review the changes in this PR. Focus on bugs, logic errors, security vulnerabilities, and project convention violations. Only report issues with confidence >= 80.
+
+  Test summary: [PASTE SUMMARIZED TEST RESULTS]"
 ```
 
 ### Silent Failure Hunter
 ```
 Task tool:
   subagent_type: pr-review-toolkit:silent-failure-hunter
+  max_turns: 20
   description: "Hunt silent failures in PR #N"
   prompt: "Review the error handling in this PR's changes. Look for empty catch blocks, swallowed errors, inappropriate fallbacks, and missing error logging."
 ```
@@ -161,35 +167,46 @@ Task tool:
 ```
 Task tool:
   subagent_type: pr-review-toolkit:pr-test-analyzer
+  max_turns: 20
   description: "Analyze test coverage for PR #N"
   prompt: "Review the test coverage quality for this PR's changes. Identify critical gaps, missing edge cases, and tests that don't actually test real behavior."
 ```
 
-## Issue-Fixer Dispatch Template
+## Issue-Fixer Dispatch Template (Batched)
+
+**Dispatch in batches of at most 3 issues per dispatch.** Sub-agents cannot compact context — a single dispatch with many issues will exhaust the context window.
 
 ```
 Task tool:
   subagent_type: super-ralph:issue-fixer
-  description: "Fix review findings for PR #N"
+  max_turns: 30
+  description: "Fix review findings batch [N]/[TOTAL] for PR #[PR_NUMBER]"
   prompt: |
     Fix the following code review findings for PR #<PR_NUMBER>.
+    This is batch [N] of [TOTAL].
 
-    ## Findings to Fix (Critical first, then Important)
+    ## Findings to Fix (max 3 — Critical first, then Important)
 
-    <PASTE STRUCTURED FINDINGS HERE>
+    <PASTE ONLY THIS BATCH'S FINDINGS>
 
     ## Instructions
 
     For each finding:
-    1. Read the relevant code and understand context
+    1. Read 20 lines of context around the issue
     2. Implement the minimal fix
-    3. Run tests: <PROJECT_TEST_COMMAND>
-    4. Commit: git commit -m "fix: [what] (review-fix)"
-    5. Push: git push
+    3. Run the specific test file: bun test <test-file-path>
+    4. Commit and push: git add [files] && git commit -m "fix: [what] (review-fix)" && git push
 
     Skip Minor and Suggestions — they don't block completion.
     NEVER ask for human input.
 ```
+
+**Batching example:** 2 Critical + 5 Important issues → 3 dispatches:
+- Batch 1: 2 Critical + 1 Important
+- Batch 2: 2 Important
+- Batch 3: 2 Important
+
+Process batches sequentially. After each batch, verify with `git log --oneline -5` before dispatching the next.
 
 ## Anti-Oscillation
 
@@ -204,6 +221,9 @@ Track fix history. If the same issue (same file, same type) appears in 3+ consec
 - **Always create a worktree.** Never run a review-fix loop in the main working directory.
 - **Never ask the user** about worktree location. Default to `.worktrees/` autonomously.
 - **Run ALL regression tests every iteration.** Tests are the ground truth — code review alone is not enough.
+- **Summarize test output.** Never paste raw test output into sub-agent prompts. Summarize to counts + one-line errors.
+- **Batch issue-fixer dispatches.** Maximum 3 issues per dispatch. Sub-agents cannot compact context.
+- **Set max_turns on all Task dispatches.** Review agents: 20. Issue-fixer: 30. Brainstormer: 15.
 - **Fix Critical before Important.** Severity order matters. New test failures are Critical.
 - **Skip Minor and Suggestions.** They don't block completion.
 - **Push after every fix commit.** The PR must reflect latest state for re-review.

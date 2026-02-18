@@ -117,9 +117,13 @@ To distinguish new from pre-existing failures, check if the failing test file wa
 git log --oneline --grep="review-fix" --name-only | grep "<failing-test-path>"
 ```
 
+**Summarize test output before passing to sub-agents:**
+
+Do NOT paste raw test output into sub-agent prompts — it can be thousands of lines and exhausts the sub-agent's context window. Instead, create a concise summary (see `references/review-fix-prompt.md` Step 2 for the format). Keep each failure to 2-3 lines. Omit full stack traces.
+
 ### Step 3: Run PR Review Agents
 
-Dispatch pr-review-toolkit agents via the Task tool:
+Dispatch pr-review-toolkit agents via the Task tool with **max_turns: 20**:
 
 - **code-reviewer** — General code quality, logic, architecture
 - **silent-failure-hunter** — Silent failures, swallowed errors, missing error paths
@@ -130,7 +134,7 @@ Additional agents can be added based on the PR's nature:
 
 Each agent returns structured findings with severity classifications.
 
-**Include test results in review agent context:** Pass the regression test results from Step 2 to all review agents so they can correlate code issues with test failures.
+**Include summarized test results in review agent context:** Pass the **summarized** (not raw) regression test results from Step 2 to all review agents so they can correlate code issues with test failures. See Step 2 for the summary format.
 
 ### Step 4: Parse and Classify Findings
 
@@ -152,39 +156,40 @@ If BOTH conditions are met:
 
 If either condition fails, proceed to Step 6.
 
-### Step 6: Dispatch Issue Fixer
+### Step 6: Dispatch Issue Fixer (Batched)
 
-Dispatch an issue-fixer subagent (Task tool, sonnet model) with the structured findings, including both code review findings AND test failures:
+**Dispatch issue-fixer subagents in batches of at most 3 issues per dispatch** to prevent context exhaustion. Sub-agents cannot compact their context, so unbounded dispatches will fail on PRs with many findings.
+
+**Batching strategy:**
+- Maximum 3 issues per batch
+- Process batches sequentially (not parallel) to avoid git conflicts
+- Each batch: `Task tool, sonnet model, max_turns: 30`
+- Critical issues go in the first batch(es), then Important
+
+**Prompt template per batch:**
 
 ```
-You are fixing issues found during PR review and regression testing.
+You are fixing code review issues for PR #<PR_NUMBER>. Batch [N] of [TOTAL].
 
-## Issues to Fix (ordered by severity)
+## Issues to Fix (max 3)
 
 ### Critical
-[list of critical issues with file paths, line numbers, descriptions]
-[include new test failures with their error messages and stack traces]
+[Only this batch's critical issues — file, line, one-line description, suggested fix]
 
 ### Important
-[list of important issues with file paths, line numbers, descriptions]
+[Only this batch's important issues — file, line, one-line description, suggested fix]
 
 ## Rules
-- Fix Critical issues first (including test failures), then Important
-- For each fix: read the code context, implement the fix, run relevant tests
-- After fixing a test failure, run the specific test to verify it passes:
-  `bun test <test-file-path>`
-- Commit each fix separately: `git commit -m "fix: [what] (review-fix)"`
+- Fix Critical first, then Important
+- Read 20 lines of context around each issue (not entire files)
+- Run only the specific test file after each fix, not the full suite
+- Commit each fix: `git commit -m "fix: [what] (review-fix)"`
 - Push after each commit: `git push`
-- If a fix requires a design decision, search the codebase for existing patterns and follow them
-- If stuck on a fix, skip it and note why in a comment
-
-## Autonomous Decisions
-When encountering ambiguity about how to fix an issue:
-1. Search codebase for similar patterns
-2. If unclear, dispatch research-agent for references
-3. Pick the approach most consistent with existing code
-4. NEVER wait for human input
+- Use targeted grep with head_limit: 10 when searching patterns
+- NEVER wait for human input
 ```
+
+After each batch completes, verify fixes were pushed before dispatching the next batch.
 
 ### Step 7: Continue Loop
 
@@ -362,6 +367,37 @@ Each fix gets its own commit. Do not batch fixes into a single commit — this m
 - **Output:** A merged PR with no Critical or Important review findings and all regression tests passing
 - **Does NOT handle:** Release management, deployment — those are post-merge concerns
 - **Pairs with:** ralph-planning (review-fix as final phase), super-ralph:launch (for the ralph-loop infrastructure), super-ralph:update (for post-merge project status updates)
+
+## Context Management for Sub-Agents
+
+Sub-agents dispatched via the Task tool operate in a **fixed context window that cannot be compacted**. Unlike the main conversation, sub-agents have no mechanism to compress prior messages when approaching the limit. When a sub-agent exhausts its context, it fails immediately with no recovery.
+
+### Principles
+
+1. **Batch, don't bulk.** Never dispatch a single sub-agent with more than 3 issues to fix. Each issue requires reading code, searching patterns, running tests, and committing — this accumulates rapidly.
+
+2. **Summarize, don't paste.** Never paste raw test output, full PR diffs, or verbose command output into sub-agent prompts. Summarize to the essential information (file paths, one-line errors, counts).
+
+3. **Set max_turns.** Always set `max_turns` on Task dispatches to prevent unbounded execution:
+   - Review agents (code-reviewer, silent-failure-hunter): `max_turns: 20`
+   - Issue-fixer (per batch of 3): `max_turns: 30`
+   - SME brainstormer: `max_turns: 15`
+   - Research agent: `max_turns: 10`
+
+4. **Read targeted, not exhaustive.** Sub-agents should read 20 lines of context around an issue, not 50. They should use `head_limit` on grep/glob searches. They should run specific test files, not the full suite.
+
+5. **Sequential batches, not parallel.** Issue-fixer batches must run sequentially to avoid git conflicts and to allow each batch to build on prior fixes.
+
+### Context Budget Estimation
+
+A rough guide for sub-agent context consumption per operation:
+- Initial prompt: ~2-5K tokens (depending on findings included)
+- File read (20 lines): ~500 tokens per read
+- Grep search: ~200-1K tokens per search (use head_limit)
+- Test run output: ~500-2K tokens per test file
+- Git commit/push: ~200 tokens per operation
+
+For an issue-fixer batch of 3 issues: ~15-25K tokens total, well within the context window. For a batch of 10 issues: ~50-80K tokens, likely to exhaust context.
 
 ## References
 
