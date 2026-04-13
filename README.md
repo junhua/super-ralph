@@ -1,8 +1,21 @@
-# Super-Ralph v0.6.0
+<p align="center">
+  <img src="./assets/teaser.png" alt="Super-Ralph — Orbital Cadence" width="100%" />
+</p>
 
-Unified autonomous development workflow combining **ralph-planning**, **ralph-loop**, and **superpowers** into a single fire-and-forget system.
+# Super-Ralph
+
+> **v0.6.0** — Unified autonomous development workflow combining **ralph-planning**, **ralph-loop**, and **superpowers** into a single fire-and-forget system.
 
 Hit enter. Walk away. Come back to results.
+
+## Install
+
+```
+/plugin marketplace add junhua/claude-plugins
+/plugin install super-ralph@junhua-plugins
+```
+
+Then restart Claude Code. See the full command list at [`/super-ralph:help`](./commands/help.md) or run it in a Claude Code session.
 
 ## What It Does
 
