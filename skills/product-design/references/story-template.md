@@ -14,7 +14,7 @@ Use this template for individual user stories within an epic. Each story is inde
 **so that** [measurable outcome — not "I can do X" but "X is achieved"].
 
 **Priority:** P0 (must-have for MVP) | P1 (should-have) | P2 (nice-to-have)
-**Complexity:** S (1-2 TDD tasks) | M (3-5 tasks) | L (6-10 tasks) | XL (split this story)
+**Size:** S (1-2 TDD tasks) | M (3-5 tasks) | L (6-10 tasks) | XL (split this story)
 
 **Epic:** [Parent epic reference]
 **Depends on:** [Story N-1, or "None"]

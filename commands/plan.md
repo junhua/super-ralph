@@ -139,7 +139,7 @@ Dispatch the `super-ralph:plan-reviewer` agent (Task tool) to validate the plan.
 Output:
 1. Path to the plan file
 2. Summary: number of tasks, mode selected, iteration budget
-3. The launch command: `/super-ralph:launch <plan-path>`
+3. The launch command: `/super-ralph:build <plan-path>`
 
 ## Critical Rules
 

@@ -7,10 +7,11 @@ Use this template when creating autonomous execution plans. Fill in all brackete
 ````markdown
 # [Feature Name] Implementation Plan
 
+> **Issue:** #N (if applicable — reference the GitHub Issue this plan implements)
 > **Executor:** super-ralph (autonomous)
 > **Mode:** [standard | hybrid]
 > **Skills:** super-ralph:ralph-planning, superpowers:test-driven-development, superpowers:systematic-debugging, superpowers:verification-before-completion, superpowers:dispatching-parallel-agents
-> **Run:** `/super-ralph:launch` with this plan
+> **Run:** `/super-ralph:build` with this plan
 
 ## Goal
 
@@ -176,4 +177,6 @@ git log --oneline | head -[N]
 
 If all pass: `<promise>[PROMISE_TEXT]</promise>`
 If any fail: Fix the failure, re-run verification, loop continues.
+
+**PR note:** When creating the PR, include `Closes #N` (where N is the issue number from the header) in the PR body to auto-close the linked issue.
 ````

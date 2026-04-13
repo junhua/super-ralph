@@ -69,7 +69,7 @@ Every story follows the template in `references/story-template.md`.
 **so that** [measurable outcome].
 
 **Priority:** P0 (must-have) | P1 (should-have) | P2 (nice-to-have)
-**Complexity:** S | M | L | XL
+**Size:** S | M | L | XL
 ```
 
 ### Acceptance Criteria (BDD Format)
@@ -176,12 +176,81 @@ The plan command should:
 |---|---|
 | Acceptance criteria (Given/When/Then) | E2E test cases (Task 0) |
 | Priority (P0/P1/P2) | Task ordering |
-| Complexity (S/M/L/XL) | Iteration budget |
+| Size (S/M/L/XL) | Iteration budget |
 | Dependencies | Plan prerequisites section |
 
 ## Output Location
 
-Save epics to `docs/epics/YYYY-MM-DD-<slug>.md`. Create the `docs/epics/` directory if it does not exist.
+1. Save epics to `docs/epics/YYYY-MM-DD-<slug>.md` (create the directory if needed)
+2. Create `[EPIC]` issue on GitHub with sub-issues for each story (see GitHub Issue Creation section)
+3. Add all issues to Project #9 board
+
+## GitHub Issue Creation
+
+After writing the epic markdown file, also create GitHub Issues to track the work on the ForthAI Work Project #9 board.
+
+### Creating an [EPIC] Issue from an Epic
+
+After saving the epic to `docs/epics/`, create a corresponding `[EPIC]` issue:
+
+```bash
+gh issue create \
+  --title "[EPIC] <Epic title>" \
+  --label "area/<backend|frontend|fullstack>" \
+  --milestone "<active milestone>" \
+  --body "$(cat <<'EOF'
+## Goal
+<Epic business context — 1-2 sentences>
+
+## Stories
+<Checklist of [STORY] items from the epic>
+
+## Epic Document
+docs/epics/YYYY-MM-DD-<slug>.md
+
+## Notes
+<Dependencies, risks from the epic>
+EOF
+)" --repo Forth-AI/work-ssot
+# Add to Project #9, set fields: Type=epic, Size, Priority
+```
+
+### Creating [STORY] Issues from Stories
+
+For each story in the epic, create a `[STORY]` issue:
+
+```bash
+gh issue create \
+  --title "[STORY] <Story title>" \
+  --label "vertical-slice,area/<backend|frontend|fullstack>" \
+  --body "$(cat <<'EOF'
+**Parent:** #<epic-issue-number>
+
+## User Story
+**As a** <persona>,
+**I want** <action>,
+**So that** <outcome>.
+
+## Acceptance Criteria
+<BDD criteria from the story>
+EOF
+)" --repo Forth-AI/work-ssot
+# Add to Project #9, set fields: Type=story, Size, Priority
+```
+
+**Rules:**
+- [STORY] issues use the `[STORY]` title prefix
+- Size is set via Project #9 field, not labels
+- [STORY] issues are NOT pre-assigned (devs self-assign)
+- Add all issues to Project #9: `gh project item-add 9 --owner Forth-AI --url <issue-url>`
+
+### Epic Size Mapping
+
+| Epic Size | Stories | Project Field |
+|-----------|---------|---------------|
+| Small (2-4 stories) | 2-4 | Size=L |
+| Medium (5-8 stories) | 5-8 | Size=XL |
+| Large (9+ stories) | 9+ | Split into multiple `[EPIC]` issues |
 
 ## References
 

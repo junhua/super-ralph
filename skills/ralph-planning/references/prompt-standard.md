@@ -107,6 +107,6 @@ If unable to progress after 3 iterations on the same task:
 When launching a standard-mode ralph-loop:
 
 1. Replace `[PLAN_FILE_PATH]` with the actual path to the plan (e.g., `docs/plans/2026-02-15-notification-service.md`)
-2. Write the prompt to `.claude/ralph-loop.local.md` via the setup script, or pass it to `/super-ralph:launch`
+2. Write the prompt to `.claude/ralph-loop.local.md` via the setup script, or pass it to `/super-ralph:build`
 3. Set `--completion-promise` to match the plan's promise text (e.g., `ALL_TASKS_COMPLETE`)
 4. Set `--max-iterations` to the plan's iteration budget max setting

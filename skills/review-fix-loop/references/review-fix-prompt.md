@@ -7,35 +7,28 @@ This is the ralph-loop prompt that gets written to `.claude/ralph-loop.local.md`
 ## Template
 
 ```
-You are running an autonomous PR review-and-fix cycle via Ralph Loop with regression testing and auto-merge.
+You are running an autonomous code review-and-fix cycle via Ralph Loop with regression testing. A PR will be created when the code is clean.
 
-## PR
+## Branch
 
-PR number: [PR_NUMBER or "create PR first"]
-Base branch: [BASE_BRANCH, e.g., "main"]
 Feature branch: [FEATURE_BRANCH]
 
 ## Each Iteration
 
-### 1. Ensure PR Exists
+### 1. Rebase to Default Branch
 
-Check if the PR exists:
-
-```bash
-gh pr view [PR_NUMBER] --json state 2>/dev/null
-```
-
-If no PR exists, create one:
+Rebase onto the latest default branch every iteration to stay current:
 
 ```bash
-gh pr create --title "[PR_TITLE]" --body "[PR_BODY]" --base [BASE_BRANCH]
+DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+git fetch origin "$DEFAULT_BRANCH"
+git rebase "origin/$DEFAULT_BRANCH"
 ```
 
-If the PR exists, ensure local commits are pushed:
-
-```bash
-git push
-```
+If rebase conflicts:
+- Attempt auto-resolution for trivial conflicts (lock files, auto-generated files)
+- For non-trivial: `git rebase --abort`, dispatch sme-brainstormer to analyze
+- If unresolvable: output <promise>REVIEW_BLOCKED</promise> with conflict details
 
 ### 2. Run Regression Tests
 
@@ -96,15 +89,21 @@ Classification:
 
 Keep each failure to 2-3 lines maximum. Omit full stack traces — the issue-fixer can read the full output when it runs the test itself.
 
-### 3. Run PR Review Agents
+### 3. Run Review Agents
 
-Dispatch review agents via the Task tool. **Use max_turns to prevent context exhaustion.**
+Dispatch review agents via the Task tool. **Use max_turns to prevent context exhaustion.** Agents review the branch diff against the default branch.
+
+**Get the diff for agent context:**
+```bash
+DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+git diff "origin/$DEFAULT_BRANCH"...HEAD
+```
 
 **Code Reviewer (sonnet model, max_turns: 20):**
 ```
-Review PR #[PR_NUMBER] for code quality issues.
+Review the code changes on branch [FEATURE_BRANCH] for quality issues.
 
-Read the diff: `gh pr diff [PR_NUMBER]`
+Read the diff: `git diff origin/<default-branch>...HEAD`
 Read affected files for full context.
 
 Regression test summary:
@@ -126,9 +125,9 @@ FIX: [suggested fix approach]
 
 **Silent Failure Hunter (sonnet model, max_turns: 20):**
 ```
-Hunt for silent failures in PR #[PR_NUMBER].
+Hunt for silent failures in the changes on branch [FEATURE_BRANCH].
 
-Read the diff: `gh pr diff [PR_NUMBER]`
+Read the diff: `git diff origin/<default-branch>...HEAD`
 Read affected files for full context.
 
 Look for:
@@ -140,6 +139,38 @@ Look for:
 
 Classify each finding with the same severity scale.
 Output in the same format as above.
+```
+
+**Test Analyzer (sonnet model, max_turns: 20):**
+```
+Analyze test coverage quality for the changes on branch [FEATURE_BRANCH].
+
+Read the diff: `git diff origin/<default-branch>...HEAD`
+Read test files for context.
+
+Focus on:
+- Critical code paths without test coverage
+- Edge cases and boundary conditions
+- Error handling paths
+- Tests that test implementation instead of behavior
+
+Output findings with the same severity classification.
+```
+
+**Comment Analyzer (sonnet model, max_turns: 20):**
+```
+Analyze code comments in the changes on branch [FEATURE_BRANCH].
+
+Read the diff: `git diff origin/<default-branch>...HEAD`
+Read affected files for context.
+
+Check for:
+- Comments that are factually incorrect vs the code
+- Misleading or outdated comments
+- Missing documentation for complex logic
+- Comments that merely restate obvious code
+
+Output findings with the same severity classification.
 ```
 
 ### 4. Parse and Classify Findings
@@ -158,7 +189,7 @@ Completion requires BOTH:
 If BOTH conditions met:
 - Log Minor and Suggestion findings for reference (do not fix)
 - Output: <promise>REVIEW_CLEAN</promise>
-- Proceed to Step 8 (Merge PR)
+- Proceed to Step 8 (Create PR)
 
 If either condition fails:
 - Proceed to Step 6
@@ -184,7 +215,7 @@ Sub-agents cannot compact their context. A single dispatch with many issues will
 **Prompt template for each batch:**
 
 ```
-You are fixing code review issues for PR #[PR_NUMBER]. This is batch [N] of [TOTAL].
+You are fixing code review issues on branch [FEATURE_BRANCH]. This is batch [N] of [TOTAL].
 
 ## Issues to Fix (max 3)
 
@@ -199,7 +230,6 @@ For each issue:
 3. Implement the minimal fix
 4. Run the relevant test: `bun test [test-file-path]`
 5. Commit: `git add [files] && git commit -m "fix: [what] (review-fix)"`
-6. Push: `git push`
 
 ## Context Economy Rules
 - Read only the lines you need — do NOT read entire files
@@ -209,7 +239,7 @@ For each issue:
 - NEVER ask for human input
 ```
 
-After each batch completes, verify the fixes were pushed before dispatching the next batch:
+After each batch completes, verify the fixes were committed before dispatching the next batch:
 ```bash
 git log --oneline -5
 ```
@@ -240,37 +270,51 @@ Analyze the root cause and recommend a fix that resolves all oscillating issues 
 - Apply the architectural fix
 - Commit: `git commit -m "fix: resolve oscillation in [file] (review-fix)"`
 
-### 8. Merge PR (on REVIEW_CLEAN only)
+### 8. Create PR (on REVIEW_CLEAN only)
 
-When the loop outputs REVIEW_CLEAN, merge the PR automatically:
+When the loop outputs REVIEW_CLEAN, push the branch and create a PR:
 
-1. Verify PR is mergeable:
+1. Push the branch:
    ```bash
-   gh pr view [PR_NUMBER] --json mergeable,mergeStateStatus
+   git push -u origin HEAD
    ```
 
-2. Wait for CI checks to complete (if any):
+2. Check if a PR already exists:
    ```bash
-   gh pr checks [PR_NUMBER] --watch
+   EXISTING_PR=$(gh pr list --head "[FEATURE_BRANCH]" --json number --jq '.[0].number')
    ```
 
-3. Merge using squash (consolidates review-fix commits):
+3. **Discover the associated GitHub issue** (so the PR body includes `Closes #N`):
    ```bash
-   gh pr merge [PR_NUMBER] --squash --delete-branch
+   SLUG=$(echo "[FEATURE_BRANCH]" | sed 's|super-ralph/||; s|/|-|g')
+   PLAN_FILE=$(ls docs/plans/*${SLUG}*.md 2>/dev/null | head -1)
+   ISSUE_NUM=""
+   if [ -n "$PLAN_FILE" ]; then
+     ISSUE_NUM=$(grep -oE '(Closes|Issue)[[:space:]]*#[0-9]+' "$PLAN_FILE" | grep -oE '[0-9]+' | head -1)
+   fi
+   CLOSES_LINE=""
+   if [ -n "$ISSUE_NUM" ]; then
+     CLOSES_LINE="Closes #$ISSUE_NUM"
+   fi
    ```
 
-4. If merge fails (conflicts, branch protection, etc.):
-   - Log the error
-   - Output: "PR #[PR_NUMBER] is review-clean but could not be auto-merged: [reason]"
-   - Do NOT retry or force-merge
+4. Create or update PR:
+   - If no PR exists:
+     ```bash
+     DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+     gh pr create --title "<auto-generated title>" --body "<summary>
 
-5. If merge succeeds:
-   - Output: "PR #[PR_NUMBER] merged successfully. Branch deleted."
+$CLOSES_LINE" --base "$DEFAULT_BRANCH"
+     ```
+     **IMPORTANT:** The PR body MUST include `Closes #N` if an issue number was found. This enables GitHub auto-close and the finalise command's issue discovery.
+   - If PR exists: report `"PR #$EXISTING_PR updated with clean code."`
 
-### 9. Continue (if not merging)
+5. Output: `"Branch is review-clean. PR #[NUMBER] created/updated. Run /super-ralph:finalise to merge and update project status."`
+
+### 9. Continue (if not creating PR)
 
 The ralph-loop Stop hook will feed this prompt back for the next iteration.
-The next iteration will re-run all regression tests AND re-review the updated PR.
+The next iteration will rebase, re-run all regression tests, AND re-review the updated branch diff.
 
 ## Fix History Tracking
 
@@ -289,16 +333,16 @@ Use this to:
 
 ## Rules
 
-- Run ALL regression tests at the start of each iteration — do not skip
+- Rebase to default branch at the start of EVERY iteration — do not skip
+- Run ALL regression tests after rebase — do not skip
 - Fix Critical issues (including test failures) before Important ones
 - Skip Minor and Suggestions — they do not block completion
 - NEVER ask for human input — use research-agent if stuck on a fix
 - Commit each fix separately with message format: `fix: [what] (review-fix)`
-- Push after each commit so the PR stays updated
 - If the same issue persists after 2 fix attempts, escalate to sme-brainstormer analysis
 - NEVER output <promise>REVIEW_CLEAN</promise> if Critical or Important issues remain OR tests are failing — that would be lying
 - The promise must be TRUE: the review genuinely found no blocking issues AND all tests pass
-- After REVIEW_CLEAN, merge the PR automatically via squash merge
+- After REVIEW_CLEAN, create a PR (do NOT merge — that is /super-ralph:finalise's job)
 ```
 
 ---
@@ -308,23 +352,19 @@ Use this to:
 When launching a review-fix cycle:
 
 1. Replace all `[bracketed]` values in the template:
-   - `[PR_NUMBER]` — The PR number, or "create PR first" if no PR exists yet
-   - `[BASE_BRANCH]` — Usually "main" or "master"
    - `[FEATURE_BRANCH]` — The current branch name
-   - `[PR_TITLE]` — Title for PR creation (if needed)
-   - `[PR_BODY]` — Body for PR creation (if needed)
 
-2. Write the filled template to `.claude/ralph-loop.local.md` via the setup script or `/super-ralph:launch`
+2. Write the filled template to `.claude/ralph-loop.local.md` via the setup script or `/super-ralph:build`
 
 3. Set ralph-loop parameters:
    - `--completion-promise "REVIEW_CLEAN"`
-   - `--max-iterations 15` (typical) or `--max-iterations 25` (large PRs)
+   - `--max-iterations 15` (typical) or `--max-iterations 25` (large branches)
 
-4. The loop runs autonomously: test, review, fix, push, re-test, re-review, until clean and green, then auto-merges.
+4. The loop runs autonomously: rebase, test, review, fix, commit, repeat until clean, then creates a PR.
 
 ## Expected Convergence
 
-- **Healthy:** Each iteration finds fewer issues and test failures. Converges in 3-6 iterations for typical PRs. Auto-merges on clean.
-- **Slow convergence:** Each fix introduces minor new issues. Normal for complex PRs. Converges in 6-10 iterations.
+- **Healthy:** Each iteration finds fewer issues and test failures. Converges in 3-6 iterations for typical branches. Creates PR on clean.
+- **Slow convergence:** Each fix introduces minor new issues. Normal for complex branches. Converges in 6-10 iterations.
 - **Oscillation:** Same issues reappear. Anti-oscillation logic kicks in after 2 cycles.
 - **Divergence:** More issues each iteration. Indicates a fundamental problem. Brainstormers are dispatched automatically.

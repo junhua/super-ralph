@@ -2,7 +2,7 @@
 name: design
 description: "Create epics and user stories with BDD acceptance criteria from product vision, business goals, or user feedback"
 argument-hint: "<feature-or-goal> [--output PATH]"
-allowed-tools: ["Bash(git:*)", "Read", "Write", "Glob", "Grep", "Task", "WebSearch", "WebFetch"]
+allowed-tools: ["Bash(git:*)", "Bash(gh:*)", "Read", "Write", "Glob", "Grep", "Task", "WebSearch", "WebFetch"]
 ---
 
 # Super-Ralph Design Command
@@ -96,12 +96,53 @@ Fix any issues identified.
 2. Write the epic to the output path using the epic template from `${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/epic-template.md`
 3. Commit: `git add docs/epics/<file> && git commit -m "epic: [title]"`
 
-### Step 8: Report
+### Step 8: Create GitHub Issues
+
+Invoke the `super-ralph:issue-management` skill, then follow its taxonomy and templates to create tracking issues.
+
+1. **Find the active milestone:**
+   ```bash
+   gh api repos/Forth-AI/work-ssot/milestones --jq '.[] | select(.state=="open") | "\(.number) \(.title)"'
+   ```
+   If no milestone exists or the epic doesn't fit an existing one, note this in the report and skip milestone attachment (only Jeph creates milestones).
+
+2. **Create the `[EPIC]` parent issue** with area label and milestone (if found):
+   ```bash
+   gh issue create --title "[EPIC] <title>" \
+     --label "area/<backend|frontend|fullstack>" \
+     --milestone "<active milestone>" \
+     --body "<EPIC body template from issue-management skill>" \
+     --repo Forth-AI/work-ssot
+   ```
+   Then add to Project #9 and set fields: Type=epic, Size, Priority.
+
+3. **Create `[STORY]` issues** for each story:
+   ```bash
+   gh issue create --title "[STORY] <Story title>" \
+     --label "vertical-slice,area/<area>" \
+     --body "**Parent:** #<epic-number>\n\n## User Story\n**As a** ...\n**I want** ...\n**So that** ...\n\n## Acceptance Criteria\n<BDD criteria>" \
+     --repo Forth-AI/work-ssot
+   ```
+   Then add to Project #9 and set fields: Type=story, Size, Priority.
+
+4. **Add all issues to Project #9:**
+   ```bash
+   gh project item-add 9 --owner Forth-AI --url <issue-url>
+   ```
+
+5. **Update the EPIC body** with linked sub-issue numbers:
+   ```bash
+   gh issue edit <epic-number> --body "<updated body with #N references>" --repo Forth-AI/work-ssot
+   ```
+
+### Step 9: Report
 
 Output:
 1. Path to the epic file
-2. Summary: number of stories, P0/P1/P2 breakdown, total acceptance criteria count
-3. Suggested next steps:
+2. GitHub issue numbers: EPIC #N with sub-issues #N1, #N2, etc.
+3. Milestone attachment status
+4. Summary: number of stories, P0/P1/P2 breakdown, total acceptance criteria count
+5. Suggested next steps:
    - `/super-ralph:plan --story docs/epics/<file>#story-1` for the first P0 story
    - Or `/super-ralph:plan --story docs/epics/<file>#story-1,story-2` for multiple independent stories
 

@@ -59,7 +59,7 @@ Every ralph-planning plan follows this structure. See `references/plan-template.
 > **Executor:** super-ralph (autonomous)
 > **Mode:** standard | hybrid
 > **Skills:** super-ralph:ralph-planning, superpowers:test-driven-development, superpowers:systematic-debugging, superpowers:verification-before-completion, superpowers:dispatching-parallel-agents
-> **Run:** `/super-ralph:launch` with this plan
+> **Run:** `/super-ralph:build` with this plan
 ```
 
 ### Required Sections
@@ -245,7 +245,42 @@ After the plan is written, generate the ralph-loop execution prompt. See:
 - `references/prompt-standard.md` — For standard mode
 - `references/prompt-hybrid.md` — For hybrid mode
 
-Save the plan to `docs/plans/YYYY-MM-DD-<feature-name>.md` and offer to launch with `/super-ralph:launch`.
+Save the plan to `docs/plans/YYYY-MM-DD-<feature-name>.md` and offer to launch with `/super-ralph:build`.
+
+## GitHub Issue Integration
+
+Plans should reference the GitHub Issue they implement. This creates traceability from issue → plan → code → PR → issue closure.
+
+### Plan Header
+
+Include the issue reference in the plan header:
+
+```markdown
+# [Plan Title]
+
+> **Issue:** #N ([EPIC]/[REQ]/[FIX] title)
+> **Branch:** `feat/<dev>/<feature>`
+> ...
+```
+
+### PR Body
+
+When the plan's review-fix cycle creates a PR, include `Closes #N` in the PR body to auto-close the issue and move it to "Shipped" on the project board.
+
+### Multiple Issues
+
+If a plan implements multiple sub-issues of an [EPIC], reference all of them:
+
+```markdown
+> **Issues:** #N1, #N2, #N3 (sub-issues of [EPIC] #M)
+```
+
+And in the PR body:
+```
+Closes #N1
+Closes #N2
+Closes #N3
+```
 
 ## References
 

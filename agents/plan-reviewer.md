@@ -15,8 +15,8 @@ assistant: "I'll use the plan-reviewer agent to validate this plan for autonomou
 </example>
 
 <example>
-Context: The user is about to launch a ralph-loop with /super-ralph:launch and the plan should be checked first.
-user: "/super-ralph:launch docs/plans/api-refactor.md"
+Context: The user is about to launch a ralph-loop with /super-ralph:build and the plan should be checked first.
+user: "/super-ralph:build docs/plans/api-refactor.md"
 assistant: "Before launching, let me validate this plan to ensure it's ready for autonomous execution."
 <commentary>
 Proactively validate plans before launch. This catches issues like placeholder code snippets, missing test commands, unreasonable iteration budgets, or non-machine-verifiable completion criteria — all of which would cause the ralph-loop to get stuck.

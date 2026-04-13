@@ -1,10 +1,10 @@
 {
   "name": "super-ralph",
-  "version": "0.2.1",
-  "description": "Unified autonomous development workflow combining ralph-planning, ralph-loop, and superpowers. Plan, execute, review, and fix — all fire-and-forget.",
+  "version": "0.6.0",
+  "description": "Unified autonomous development workflow. Design, plan, build, repair, verify, release, and e2e epic execution — all fire-and-forget. Domain-aware repair with hotfix flow.",
   "author": {
     "name": "junhua",
     "email": "junhua.viva@gmail.com"
   },
-  "keywords": ["ralph-loop", "superpowers", "autonomous", "fire-and-forget", "tdd", "pr-review"]
+  "keywords": ["ralph-loop", "superpowers", "autonomous", "fire-and-forget", "tdd", "pr-review", "browser-verification", "release", "e2e", "epic", "staging", "hotfix", "domain-aware", "repair-pipeline"]
 }
