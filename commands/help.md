@@ -11,7 +11,7 @@ Display comprehensive help for the super-ralph plugin.
 ## Output the following help text:
 
 ```
-# Super-Ralph v0.6.0 — Autonomous Development Workflow
+# Super-Ralph v0.7.0 — Autonomous Development Workflow
 
 Super-ralph combines ralph-planning, ralph-loop, and superpowers into a unified
 fire-and-forget development workflow. Hit enter, walk away, come back to results.
@@ -46,12 +46,13 @@ by dispatching research + subject-matter-expert agents. This means:
 
 ## Pipelines
 
-  Story:    build-story (plan → build → review-fix → verify → finalise)
-  Epic:     e2e (parallel build-story per story, then release)
-  Stepwise: design → plan → build → review-fix → verify → finalise
-  Reactive: repair (fix → review-fix → verify → finalise — full pipeline)
-  Hotfix:   repair --hotfix (fix → review-fix → verify → finalise on main → backport staging)
-  Release:  release (QA staging → Codex review → merge staging→main → tag)
+  Story:       build-story (plan → build → review-fix → verify → finalise)
+  Epic:        e2e (parallel build-story per story, then release)
+  Stepwise:    design → plan → build → review-fix → verify → finalise
+  Reactive:    repair (fix → review-fix → verify → finalise — full pipeline)
+  Hotfix:      repair --hotfix (fix → review-fix → verify → finalise on main → backport staging)
+  Release:     release (QA staging → Codex review → merge staging→main → tag)
+  Brainstorm:  brainstorm (research → CPO+CTO+CAIO analysis → recommendations)
 
 ## Sub-Agent Architecture
 
@@ -66,6 +67,26 @@ by dispatching research + subject-matter-expert agents. This means:
   sub-agent gets a fresh context window without inheriting conversation bloat.
 
 ## Commands
+
+### /super-ralph:brainstorm <topic> [--scope product|module|feature] [--output PATH]
+
+  Autonomous brainstorming for product and feature improvements. Dispatches
+  parallel research agents (market/competitors, agent tech landscape, codebase
+  state), then runs CPO, CTO, and CAIO brainstormers in parallel. Synthesizes
+  into ranked, opinionated, actionable recommendations.
+
+  Three executive perspectives:
+    CPO: user empathy, product-market fit, usability, competitive positioning
+    CTO: technical feasibility, architecture, scalability, simplicity
+    CAIO: agent-native design, AI capabilities/limitations, trust, transparency
+
+  Outputs a brainstorm document to docs/brainstorms/YYYY-MM-DD-<slug>.md.
+
+  Example:
+    /super-ralph:brainstorm "Finance module usability"
+    /super-ralph:brainstorm "How should agent-assisted onboarding work?"
+    /super-ralph:brainstorm "Sales/CRM" --scope module
+    /super-ralph:brainstorm "What should we build next?" --scope product
 
 ### /super-ralph:design <feature-or-goal> [--output PATH]
 
