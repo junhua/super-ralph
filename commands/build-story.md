@@ -545,7 +545,34 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    git pull origin staging
    ```
 
-5. **Close related issues:**
+5. **Verify staging deployment health:**
+
+   **Do NOT skip.** Wait for Vercel CD to deploy staging and verify the deployment is healthy before proceeding. Merge success != deployment success.
+
+   ```bash
+   echo "Waiting for Vercel staging deployment..."
+   DEPLOY_OK=false
+   for i in $(seq 1 36); do
+     STATUS_URL=$(gh api repos/Forth-AI/work-ssot/deployments \
+       --jq '[.[] | select(.ref=="staging")] | first | .statuses_url' 2>/dev/null)
+     if [ -n "$STATUS_URL" ]; then
+       STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
+       if [ "$STATE" = "success" ]; then
+         DEPLOY_OK=true
+         echo "Staging deployment succeeded."
+         break
+       elif [ "$STATE" = "error" ] || [ "$STATE" = "failure" ]; then
+         echo "STAGING DEPLOYMENT FAILED: state=$STATE"
+         break
+       fi
+     fi
+     sleep 10
+   done
+   ```
+
+   If deployment fails: report the failure in `final-result.md` with `deploy_status: FAILED` and warn. If healthy: proceed.
+
+6. **Close related issues:**
    ```bash
    # Auto-close should work via "Closes #N" in PR body
    # Verify and force-close if needed:
@@ -555,7 +582,7 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    fi
    ```
 
-6. **Move to Shipped on Project #9:**
+7. **Move to Shipped on Project #9:**
    ```bash
    ITEM_ID=$(gh project item-list 9 --owner Forth-AI --format json | \
      python3 -c "import json,sys; [print(i['id']) for i in json.load(sys.stdin)['items'] if i.get('content',{}).get('number')==$STORY_ID]" 2>/dev/null)
@@ -567,7 +594,7 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    fi
    ```
 
-7. **Update plan status** (mark as completed):
+8. **Update plan status** (mark as completed):
    ```bash
    # Add completion marker to plan file
    PLAN_PATH=$(grep "plan_path:" "$STORY_DIR/plan-result.md" | awk '{print $2}')
@@ -579,7 +606,7 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    git push origin staging
    ```
 
-8. **Update epic story status** (if story came from an epic):
+9. **Update epic story status** (if story came from an epic):
    Read the epic file, find the story section, add completion marker.
    ```bash
    git add docs/epics/
@@ -587,7 +614,7 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    git push origin staging
    ```
 
-9. **Check if parent epic is complete:**
+10. **Check if parent epic is complete:**
    If all sub-issues of the parent epic are now closed:
    ```bash
    if [ -n "$PARENT_EPIC" ]; then
@@ -601,7 +628,7 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    fi
    ```
 
-10. **Cleanup worktree:**
+11. **Cleanup worktree:**
     ```bash
     git worktree prune
     WORKTREE_PATH=$(git worktree list | grep "super-ralph/$STORY_SLUG" | awk '{print $1}')
@@ -610,19 +637,20 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
     fi
     ```
 
-11. **Write result** to `$STORY_DIR/final-result.md`:
+12. **Write result** to `$STORY_DIR/final-result.md`:
     ```
     phase: finalise
     status: DONE
     pr_number: $PR_NUMBER
     pr_merged: true
+    deploy_status: [HEALTHY|FAILED|PENDING]
     issue_closed: #$STORY_ID
     epic_complete: [true|false]
     branch_deleted: true
     worktree_cleaned: true
     ```
 
-12. Update `$STORY_DIR/progress.md`: Finalise → DONE
+13. Update `$STORY_DIR/progress.md`: Finalise → DONE
 
 ### Step 6: Summary
 
@@ -703,4 +731,5 @@ This makes the command **idempotent** — safe to re-run without duplicating wor
 - **Story executor branches:** `super-ralph/$STORY_SLUG` naming convention.
 - **Cleanup worktrees.** After finalise, the worktree is removed. Build result records the path for cleanup.
 - **Report progress.** Update progress.md after every phase so resume detection works.
+- **Verify deployment before declaring done.** After merge to staging in Phase 5, wait for Vercel CD to complete and verify the staging deployment is healthy. Merge success != deployment success. Include `deploy_status` in final-result.md.
 - **Don't over-dispatch.** The orchestrator (this command) handles sequencing. Sub-agents handle execution. Don't nest more than 2 levels of sub-agents (orchestrator → phase agent → review/fix/brainstorm agents).

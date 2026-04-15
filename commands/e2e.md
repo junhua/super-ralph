@@ -285,11 +285,29 @@ For each completed story **one at a time** (sequential to avoid merge conflicts)
    # Pull merged changes
    git pull origin staging
    ```
-3. Close related GitHub issues (same logic as finalise.md Step 2b)
-4. Update progress tracker
-5. Report: `"Finalised Story #$STORY_NUMBER — PR #$PR_NUMBER merged into staging"`
+3. **Verify staging deployment health** (same logic as finalise.md Step 2a):
+   Wait for Vercel CD to complete on staging (max 6 minutes). Verify the staging URL returns HTTP 200. If deployment fails, report the error and do NOT proceed to the next story merge — a broken staging blocks subsequent merges.
+   ```bash
+   DEPLOY_OK=false
+   for i in $(seq 1 36); do
+     STATUS_URL=$(gh api repos/Forth-AI/work-ssot/deployments \
+       --jq '[.[] | select(.ref=="staging")] | first | .statuses_url' 2>/dev/null)
+     if [ -n "$STATUS_URL" ]; then
+       STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
+       if [ "$STATE" = "success" ]; then DEPLOY_OK=true; break; fi
+       if [ "$STATE" = "error" ] || [ "$STATE" = "failure" ]; then break; fi
+     fi
+     sleep 10
+   done
+   if [ "$DEPLOY_OK" != "true" ]; then
+     echo "WARNING: Staging deployment unhealthy after merging Story #$STORY_NUMBER"
+   fi
+   ```
+4. Close related GitHub issues (same logic as finalise.md Step 2b)
+5. Update progress tracker
+6. Report: `"Finalised Story #$STORY_NUMBER — PR #$PR_NUMBER merged into staging — Deployment: [HEALTHY|FAILED]"`
 
-**Why sequential?** Stories within a wave may touch shared files (schema.ts, types.ts, i18n). Sequential merging with rebase ensures clean history. Git handles the append-only sections from the shared file protocol.
+**Why sequential?** Stories within a wave may touch shared files (schema.ts, types.ts, i18n). Sequential merging with rebase ensures clean history. Git handles the append-only sections from the shared file protocol. Additionally, verifying deployment health between merges catches build failures before they compound.
 
 #### 4d. Update Plan and Epic Status
 
@@ -460,6 +478,7 @@ Task tool:
 - **Idempotent.** Re-running detects existing progress and resumes. Never duplicates work.
 - **Graceful degradation.** A failed story doesn't kill the epic. Other stories continue. The summary reports what failed and why.
 - **Always target staging.** Story PRs merge into staging. Release promotes staging → main. Never merge directly to main.
+- **Verify deployment after every merge.** After each story merge in Step 4c, wait for Vercel staging deployment to succeed and verify HTTP health. After release merge to main, verify production deployment health. Merge != deployment. Do NOT declare done until the deployed app is healthy.
 - **Max parallelism is bounded.** Default 3 concurrent story executors. Configurable via `--max-parallel`.
 - **Clean up temp files last.** Keep `/tmp/super-ralph-e2e-$EPIC_NUMBER/` until the final summary is output. The user may need to inspect it for debugging.
 - **Story executor branches follow naming convention:** `super-ralph/$STORY_SLUG` where slug is derived from the story title.

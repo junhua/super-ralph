@@ -351,6 +351,57 @@ Merge the staging → main PR. This is the production deployment moment.
    - Report: `"Release PR #$RELEASE_PR could not be merged: [reason]. Resolve and retry."`
    - Stop — do NOT proceed to tagging.
 
+### Phase 7b: Verify Production Deployment
+
+**MANDATORY — do NOT skip.** After merge to main, wait for Vercel to deploy to production and verify the deployment is healthy. Merge success != deployment success.
+
+1. **Wait for Vercel production deployment** (max 8 minutes):
+   ```bash
+   echo "Waiting for Vercel production deployment on main..."
+   DEPLOY_OK=false
+   for i in $(seq 1 48); do
+     STATUS_URL=$(gh api repos/Forth-AI/work-ssot/deployments \
+       --jq '[.[] | select(.ref=="main" and .environment=="production")] | first | .statuses_url' 2>/dev/null)
+     if [ -n "$STATUS_URL" ]; then
+       STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
+       if [ "$STATE" = "success" ]; then
+         DEPLOY_OK=true
+         echo "Production deployment succeeded."
+         break
+       elif [ "$STATE" = "error" ] || [ "$STATE" = "failure" ]; then
+         echo "PRODUCTION DEPLOYMENT FAILED: state=$STATE"
+         break
+       fi
+     fi
+     sleep 10
+   done
+   ```
+
+2. **Verify HTTP health of production URLs:**
+   ```bash
+   for URL in "https://app.forthai.work" "https://forthai.work"; do
+     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" --max-time 15)
+     if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+       echo "HEALTHY: $URL → HTTP $HTTP_STATUS"
+     else
+       echo "UNHEALTHY: $URL → HTTP $HTTP_STATUS"
+       DEPLOY_OK=false
+     fi
+   done
+   ```
+
+3. **If production deployment failed or unhealthy:**
+   - Report: `"PRODUCTION DEPLOYMENT UNHEALTHY — do NOT seal the release. Investigate Vercel build logs."`
+   - Check Vercel deployment logs:
+     ```bash
+     vercel ls --scope forth-ai 2>/dev/null | head -5
+     ```
+   - Output `RELEASE_BLOCKED` and stop — do NOT proceed to Phase 8 (tagging). A failed production deployment must be fixed before sealing the version.
+
+4. **If healthy:**
+   - Report: `"Production deployment verified: all URLs healthy."`
+   - Proceed to Phase 8.
+
 ### Phase 8: Seal Version
 
 Execute in order on the **main** branch. Each step is final -- no rollback.
@@ -447,6 +498,7 @@ After the release, fast-forward staging to match main so it starts clean for the
    - Milestone: $MILESTONE (closed)
    - Tag: $TAG (pushed to main)
    - Release PR: #$RELEASE_PR (merged)
+   - Production deployment: [HEALTHY / UNHEALTHY] — app.forthai.work HTTP [status], forthai.work HTTP [status]
    - Codex review: [clean / N fixes applied]
    - PRs merged: [count]
    - Issues closed: [count]
@@ -466,6 +518,7 @@ After the release, fast-forward staging to match main so it starts clean for the
 - **Tag on main** -- the release tag always points to a commit on main, after the staging→main merge.
 - **Sync staging after release** -- fast-forward staging to main so it starts clean. Divergence = bug.
 - **Tag is final** -- fixes after tagging go in the next patch version (`vX.Y.1`), not by re-tagging.
+- **Verify production deployment before sealing.** After merge to main, Phase 7b verifies Vercel production deployment is healthy (HTTP 200 on production URLs). Do NOT tag or seal the release until production is confirmed healthy. Merge to main != production is live.
 - **NEVER ask for human input** -- use research agents and SME brainstormers for ambiguous decisions.
 - **Idempotent** -- running twice detects the existing tag and exits cleanly. No duplicate tags, releases, or commits.
 - **Use issue-management skill conventions** -- milestone API calls, Project #9 board IDs, and status option IDs from `references/project-board-ids.md`.

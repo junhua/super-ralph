@@ -85,6 +85,63 @@ Merge the PR using squash merge (consolidates all commits into clean history):
      git pull origin "$BASE_BRANCH"
      ```
 
+### Step 2a: Verify Deployment Health
+
+**Do NOT skip this step.** After merge, wait for the Vercel CD pipeline to complete and verify the deployment is healthy before proceeding. Merge success != deployment success.
+
+1. **Wait for Vercel deployment to complete** (max 6 minutes):
+   ```bash
+   echo "Waiting for Vercel deployment on $BASE_BRANCH..."
+   DEPLOY_OK=false
+   for i in $(seq 1 36); do
+     STATUS_URL=$(gh api repos/Forth-AI/work-ssot/deployments \
+       --jq "[.[] | select(.ref==\"$BASE_BRANCH\")] | first | .statuses_url" 2>/dev/null)
+     if [ -n "$STATUS_URL" ]; then
+       STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
+       if [ "$STATE" = "success" ]; then
+         DEPLOY_OK=true
+         echo "Vercel deployment succeeded."
+         break
+       elif [ "$STATE" = "error" ] || [ "$STATE" = "failure" ]; then
+         echo "DEPLOYMENT FAILED: state=$STATE"
+         break
+       fi
+     fi
+     sleep 10
+   done
+   ```
+
+2. **If deployment failed or timed out:**
+   - Report: `"WARNING: Vercel deployment on $BASE_BRANCH did not succeed (state: $STATE). Investigate build logs before considering this task done."`
+   - Check for Vercel bot comments with error details:
+     ```bash
+     gh api repos/Forth-AI/work-ssot/issues/$PR_NUMBER/comments \
+       --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null | head -20
+     ```
+   - Do NOT proceed to "task done" status — the deployment must be healthy.
+
+3. **Verify HTTP health** of the deployed URL:
+   ```bash
+   if [ "$BASE_BRANCH" = "main" ]; then
+     DEPLOY_URL="https://app.forthai.work"
+   else
+     # Extract staging preview URL from Vercel bot comment
+     DEPLOY_URL=$(gh api repos/Forth-AI/work-ssot/issues/$PR_NUMBER/comments \
+       --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null \
+       | grep -oE 'https://[a-zA-Z0-9._-]+\.vercel\.app' | head -1)
+   fi
+   if [ -n "$DEPLOY_URL" ]; then
+     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL" --max-time 15)
+     if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+       echo "Deployment healthy: $DEPLOY_URL returned HTTP $HTTP_STATUS"
+     else
+       echo "WARNING: Deployment may be unhealthy: $DEPLOY_URL returned HTTP $HTTP_STATUS"
+     fi
+   fi
+   ```
+
+4. **Report deployment status** in the summary (Step 8).
+
 ### Step 2b: Close Related GitHub Issues
 
 After PR merge, close any GitHub Issues linked to this work. Use multiple discovery methods (PR body, plan metadata, branch-to-issue matching) since not all PRs contain `Closes #N`.
@@ -334,6 +391,7 @@ After worktree removal, clean up branches. **Only runs if cleanup is enabled.**
    # Finalised: <feature-name>
 
    - **PR:** #NNN (merged)
+   - **Deployment:** [Vercel deployment status — success/failed/pending] — [URL] HTTP [status]
    - **Plan:** docs/plans/<file> → COMPLETED
    - **Epic Story:** <story-ref> → COMPLETED
    - **Roadmap:** Updated
@@ -357,3 +415,4 @@ After worktree removal, clean up branches. **Only runs if cleanup is enabled.**
 - **Roadmap sync is mandatory.** The roadmap update always runs — it keeps `docs/roadmap.md` in sync with epic/story state so the roadmap never drifts stale.
 - **NEVER ask for human input** during any step.
 - **Stop on merge failure.** If the PR cannot be merged, do NOT proceed to status updates — the project state should only update after code is actually on the default branch.
+- **Verify deployment before declaring done.** After merge, wait for Vercel CD to complete and verify the deployed URL is healthy (HTTP 200). Merge success != deployment success. Do NOT skip Step 2a.
