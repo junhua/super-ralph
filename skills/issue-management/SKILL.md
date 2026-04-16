@@ -28,14 +28,34 @@ A container issue that groups related [STORY] sub-issues into a functional modul
 
 ### [STORY] -- User Story
 
-A user-facing feature within an EPIC, written from a persona's perspective. The primary unit of product work. Each story should be independently implementable.
+A user-facing feature within an EPIC, written from a persona's perspective. The primary unit of product work. Each story should be independently implementable. Each STORY gets [FE] and [BE] sub-issues for concurrent frontend/backend development.
 
 - **Title format:** `[STORY] Feature description`
 - **Labels:** `vertical-slice`, `area/*`
 - **Project fields:** Type=story, Size, Priority
 - **Parent:** Always belongs to an [EPIC]
-- **Sub-issues:** Optional (for complex stories)
+- **Sub-issues:** [FE] and [BE] sub-issues (created by /design for concurrent development)
 - **Assignment:** None -- devs self-assign with `gh issue edit N --add-assignee @me`
+
+### [FE] -- Frontend Sub-Issue
+
+A frontend implementation task within a [STORY]. Created by /design for concurrent FE development.
+
+- **Title format:** `[FE] Feature description — Frontend`
+- **Labels:** `area/frontend`
+- **Project fields:** Type=story, Size
+- **Parent:** Always belongs to a [STORY]
+- **Assignment:** None — FE devs self-assign
+
+### [BE] -- Backend Sub-Issue
+
+A backend implementation task within a [STORY]. Created by /design for concurrent BE/AI development.
+
+- **Title format:** `[BE] Feature description — Backend`
+- **Labels:** `area/backend`
+- **Project fields:** Type=story, Size
+- **Parent:** Always belongs to a [STORY]
+- **Assignment:** None — BE devs self-assign
 
 ### [FIX] -- Bug Fix
 
@@ -94,9 +114,28 @@ gh issue create --title "[EPIC] Feature Title" \
 
 ```bash
 gh issue create --title "[STORY] Feature description" \
-  --label "vertical-slice,area/backend" \
+  --label "vertical-slice,area/fullstack" \
   --body "**Parent:** #N\n\nBODY" --repo Forth-AI/work-ssot
 # Then add to Project #9 and set fields: Type=story, Size=M, Priority=P1
+# Then create [FE] and [BE] sub-issues (see below)
+```
+
+### [FE] under a STORY
+
+```bash
+gh issue create --title "[FE] Feature description — Frontend" \
+  --label "area/frontend" \
+  --body "**Parent:** #STORY_NUMBER\n\nBODY" --repo Forth-AI/work-ssot
+# Then add to Project #9 and set fields: Type=story, Size
+```
+
+### [BE] under a STORY
+
+```bash
+gh issue create --title "[BE] Feature description — Backend" \
+  --label "area/backend" \
+  --body "**Parent:** #STORY_NUMBER\n\nBODY" --repo Forth-AI/work-ssot
+# Then add to Project #9 and set fields: Type=story, Size
 ```
 
 ### [FIX] for bugs
@@ -123,47 +162,77 @@ Use the templates in `references/issue-templates.md` for copy-paste-ready bodies
 
 ### EPIC Body
 
-```markdown
-## Goal
-[1-2 sentences describing the feature objective]
+````markdown
+## PM Summary
+
+### What we're building
+[2-3 sentences]
+
+### Story Priority
+| # | Story | User Value | Size | Can ship without? |
+
+### Success Metrics
+| Metric | Current | Target | How to Measure |
+
+### Not Building
+- [exclusion + why]
+
+### PM Decision Points
+- [ ] [decision to resolve before dev]
 
 ## Stories
-- [ ] [STORY] Story 1 -- [brief description]
-- [ ] [STORY] Story 2 -- [brief description]
+- [ ] #N1 [STORY] Title (P0, M) — [FE] #N2, [BE] #N3
+- [ ] #N4 [STORY] Title (P1, S) — [FE] #N5, [BE] #N6
+
+## Execution Plan
+
+### AI-Hours
+| Story | Size | AI-Hours | Depends On |
+**Total:** Xh
+
+### Waves
+| Wave | Stories | Prereqs | Calendar |
 
 ## Notes
-[Dependencies, design decisions, risks]
-```
+- **Dependencies:** ...
+- **Risks:** ...
+````
 
 ### [STORY] Body
 
-```markdown
-**Parent:** #N
+````markdown
+**Parent:** #[EPIC_NUMBER]
 
 ## User Story
-**As a** [persona],
-**I want** [capability],
-**So that** [business value].
+**As a** [persona], **I want** [action], **So that** [outcome].
+**Priority:** P0/P1/P2 | **Size:** S/M/L
 
-## Acceptance Criteria
-
-### AC-1: Happy path
-**Given** [precondition]
-**When** [action]
-**Then** [outcome]
-
-### AC-2: Edge case
-**Given** [boundary condition]
-**When** [action]
-**Then** [graceful handling]
-
-## Vertical Slice
-| Layer | File | Action |
-|-------|------|--------|
-| API | `work-agents/src/routes/foo.ts` | Create |
-| DB | `work-agents/src/db/schema.ts` | Modify |
-| UI | `work-web/src/app/.../page.tsx` | Create |
+## Acceptance Criteria (Gherkin)
+```gherkin
+Feature: [Story title]
+  Background:
+    Given I am logged in as [persona]
+  Scenario: [HAPPY] ...
+  Scenario: [EDGE] ...
+  Scenario: [SECURITY] ...
 ```
+
+## Shared Contract
+```typescript
+export type ResourceName = { ... };
+```
+
+## Sub-Issues
+- [BE] #N — Backend implementation
+- [FE] #N — Frontend implementation
+
+## E2E Test Skeleton
+```typescript
+describe("[Story]", () => {
+  test("[scenario]", async () => { ... });
+});
+```
+````
 
 ### [FIX] Body
 
@@ -267,31 +336,90 @@ EOF
 
 > **Note:** Always attach EPICs to the active Milestone. Check `gh api repos/Forth-AI/work-ssot/milestones --jq '.[] | select(.state=="open")'` to find the current one.
 
-### Step 2: Create [STORY] sub-issues
+### Step 2: Create [STORY] sub-issues with [FE] and [BE]
 
-For each story in the epic, create a [STORY] issue linked to the parent:
+For each story in the epic, create a [STORY] issue linked to the parent, then create its [FE] and [BE] sub-issues:
 
 ```bash
-gh issue create --title "[STORY] Implement feature X endpoint" \
-  --label "vertical-slice,area/backend" \
+# Create the STORY
+STORY_URL=$(gh issue create --title "[STORY] Implement feature X" \
+  --label "vertical-slice,area/fullstack" \
   --body "$(cat <<'EOF'
 **Parent:** #EPIC_NUMBER
 
 ## User Story
-**As a** [persona],
-**I want** [action],
-**So that** [outcome].
+**As a** [persona], **I want** [action], **So that** [outcome].
+**Priority:** P1 | **Size:** M
 
-## Acceptance Criteria
-- [ ] **Given** ... **When** ... **Then** ...
+## Acceptance Criteria (Gherkin)
+...
 
-## Vertical Slice
-| Layer | File | Action |
-|-------|------|--------|
+## Shared Contract
+...
 
+## Sub-Issues
+- [BE] #TBD — Backend implementation
+- [FE] #TBD — Frontend implementation
 EOF
-)" --repo Forth-AI/work-ssot
-# Add to Project #9 and set fields: Type=story, Size, Priority
+)" --repo Forth-AI/work-ssot)
+
+STORY_NUM=$(echo "$STORY_URL" | grep -o '[0-9]*$')
+
+# Create the [BE] sub-issue
+BE_URL=$(gh issue create --title "[BE] Implement feature X — Backend" \
+  --label "area/backend" \
+  --body "$(cat <<EOF
+**Parent:** #${STORY_NUM}
+
+## Shared Contract
+See parent #${STORY_NUM} — Shared Contract section.
+
+## Schema
+...
+
+## Service Interface
+...
+
+## Route Contract
+...
+
+## TDD Tasks
+...
+EOF
+)" --repo Forth-AI/work-ssot)
+
+BE_NUM=$(echo "$BE_URL" | grep -o '[0-9]*$')
+
+# Create the [FE] sub-issue
+FE_URL=$(gh issue create --title "[FE] Implement feature X — Frontend" \
+  --label "area/frontend" \
+  --body "$(cat <<EOF
+**Parent:** #${STORY_NUM}
+
+## Shared Contract
+See parent #${STORY_NUM} — Shared Contract section.
+
+## Mock Data
+...
+
+## Component Spec
+...
+
+## API Client
+...
+
+## i18n Keys
+...
+
+## TDD Tasks
+...
+EOF
+)" --repo Forth-AI/work-ssot)
+
+FE_NUM=$(echo "$FE_URL" | grep -o '[0-9]*$')
+
+# Update STORY body with actual sub-issue numbers
+gh issue edit "$STORY_NUM" --body "..." --repo Forth-AI/work-ssot
 ```
 
 ### Step 3: Add all issues to Project #9
@@ -300,8 +428,10 @@ EOF
 # Add epic
 gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/EPIC_NUMBER
 
-# Add each sub-issue
-gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/SUB_NUMBER
+# Add each story and its FE/BE sub-issues
+gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/STORY_NUMBER
+gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/FE_NUMBER
+gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/BE_NUMBER
 ```
 
 ### Step 4: Set all to Todo status
@@ -364,15 +494,16 @@ Size, Type, and Priority are tracked via Project #9 single-select fields, not la
 
 **Size rules:**
 - **EPIC, STORY, FIX, CHORE:** Size field required.
-- **Sub-issues of STORYs:** No size field — inherit scope from parent.
+- **[FE] and [BE] sub-issues:** Size field required (sum should approximate parent STORY size).
+- **Other sub-issues of STORYs:** No size field — inherit scope from parent.
 
 ### Labels Reference
 
 | Label | Used on | Purpose |
 |-------|---------|---------|
 | `vertical-slice` | STORY | Full-stack feature marker |
-| `area/backend` | All | Changes in `work-agents/` |
-| `area/frontend` | All | Changes in `work-web/` |
+| `area/backend` | All, [BE] | Changes in `work-agents/` |
+| `area/frontend` | All, [FE] | Changes in `work-web/` |
 | `area/fullstack` | All | Changes in both services |
 | `blocked` | Any | Dependency blocker |
 | `priority/critical` | Any | Hotfix auto-detection trigger (repair-domains) |
@@ -428,13 +559,28 @@ gh api repos/Forth-AI/work-ssot/milestones \
   --jq '.[] | select(.title=="v1.2") | "Open: \(.open_issues), Closed: \(.closed_issues)"'
 ```
 
+### Milestone Execution Planning
+
+Every milestone description should include an execution plan:
+
+**AI-Hours Formula:** Size midpoints: XS=0.25, S=0.75, M=2, L=4.5, XL=9
+
+**Wave Assignment Algorithm:**
+1. List all stories, identify layers (schema, service, route, page)
+2. Stories modifying schema.ts are Wave 0 (must run first)
+3. Stories importing from services created in other stories depend on them
+4. FE stories calling APIs from other stories depend on those BE stories
+5. All remaining stories with no dependencies are Wave 0
+6. Compute critical path (longest dependency chain)
+7. Calendar time = critical path + 10% buffer
+
 ### UAT & Release Flow
 
 When all EPICs in a Milestone are closed:
 
 1. **Amy & Faye test** using acceptance criteria from the EPICs
-2. **Bugs → [FIX] issues** attached to the same Milestone
-3. **Devs fix** → PRs close the [FIX] issues
+2. **Bugs -> [FIX] issues** attached to the same Milestone
+3. **Devs fix** -> PRs close the [FIX] issues
 4. **Re-test** until both Amy and Faye sign off
 5. **Tag the release:**
    ```bash
@@ -460,14 +606,14 @@ This skill connects to every other super-ralph command:
 
 ### /super-ralph:design --> issues
 
-When `/super-ralph:design` creates epics and stories, also create corresponding `[EPIC]` issues on GitHub with `[STORY]` sub-issues for each story. The epic document in `docs/epics/` is the design artifact; the GitHub issues are the tracking artifacts.
+When `/super-ralph:design` creates epics and stories, also create corresponding `[EPIC]` issues on GitHub with `[STORY]` sub-issues for each story, and `[FE]` + `[BE]` sub-issues under each story. The epic document in `docs/epics/` is the design artifact; the GitHub issues are the tracking artifacts. Each STORY issue links to its FE and BE sub-issues for concurrent development.
 
-### /super-ralph:plan --> issue references
+### /super-ralph:build-story --> issue references
 
-When `/super-ralph:plan` creates implementation plans, reference issue numbers in the plan header:
+When `/super-ralph:build-story` executes a story, it claims the relevant [FE] or [BE] sub-issue and references the issue number throughout the build process:
 
 ```markdown
-> **Tracks:** #42 (sub-issue), parent #40 ([EPIC])
+> **Tracks:** #42 ([BE] sub-issue), parent #40 ([STORY]), epic #38 ([EPIC])
 ```
 
 ### /super-ralph:review-fix --> PR with Closes
@@ -479,8 +625,9 @@ When `/super-ralph:review-fix` creates PRs, include `Closes #N` in the PR body t
 When `/super-ralph:finalise` merges a PR:
 1. The linked issue auto-closes via `Closes #N`
 2. Move the board item to Shipped
-3. If all sub-issues under an EPIC are closed, close the EPIC
-4. Update the plan document to mark the task as complete
+3. If all sub-issues under a STORY are closed, close the STORY
+4. If all STORYs under an EPIC are closed, close the EPIC
+5. Update the plan document to mark the task as complete
 
 ## Autonomous Decision Pattern
 

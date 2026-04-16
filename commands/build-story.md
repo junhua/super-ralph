@@ -1,6 +1,6 @@
 ---
 name: build-story
-description: "Execute a single story end-to-end — plan, build, review-fix, verify, finalise — with sub-agent phases and temp-file context bridges"
+description: "Execute a single story end-to-end — build, review-fix, verify, finalise. Skips plan phase when story issue contains TDD tasks."
 argument-hint: "<STORY> [--skip-verify] [--skip-finalise] [--resume] [--mode auto|standard|hybrid] [--max-build-iterations N]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh:*)", "Bash(git:*)", "Bash(gh:*)", "Bash(bun:*)", "Bash(codex:*)", "Bash(mkdir:*)", "Bash(cat:*)", "Bash(rm:*)", "Bash(wc:*)", "Bash(jq:*)", "Bash(date:*)", "Bash(realpath:*)", "Bash(test:*)", "Bash(cp:*)", "Read", "Write", "Edit", "Glob", "Grep", "Task"]
 ---
@@ -9,7 +9,7 @@ allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh:*)", "Ba
 
 Execute a single story from plan to merged PR in one fire-and-forget command. Each phase runs as a dedicated sub-agent with a fresh context window. Temp files bridge state between phases so no sub-agent needs to hold the entire story lifecycle in memory.
 
-**This is a zero-touch command.** Once invoked, it drives a story through plan → build → review-fix → verify → finalise with zero human interaction.
+**This is a zero-touch command.** Once invoked, it drives a story through build → review-fix → verify → finalise (skipping plan when TDD tasks are embedded in the issue) with zero human interaction.
 
 ## Arguments
 
@@ -181,6 +181,36 @@ When resuming, read existing result files to populate variables (PR number, plan
 Report: `"Resuming Story $STORY_ID from Phase N ($PHASE_NAME)"`
 
 ### Phase 1: Plan
+
+**Skip detection:** Before dispatching the plan sub-agent, check if the story issue body already contains TDD tasks:
+
+```bash
+STORY_BODY=$(gh issue view $STORY_ID --repo Forth-AI/work-ssot --json body --jq '.body')
+HAS_TDD=$(echo "$STORY_BODY" | grep -c "## TDD Tasks\|### Task 0:\|### Task 1:" || true)
+```
+
+If `HAS_TDD > 0`:
+1. Extract the TDD tasks section from the issue body
+2. Write it to `$STORY_DIR/plan-result.md` with status: DONE and mode: embedded
+3. Skip the plan sub-agent entirely
+4. Log: "TDD tasks found in issue body — skipping plan phase"
+5. Proceed to Phase 2 (Build)
+
+**Also check for [FE] and [BE] sub-issues:**
+```bash
+FE_ISSUE=$(gh issue list --repo Forth-AI/work-ssot --json number,title,body \
+  --jq "[.[] | select(.body | test(\"Parent:?\\s*#$STORY_ID\"; \"i\")) | select(.title | startswith(\"[FE]\"))] | first | .number")
+BE_ISSUE=$(gh issue list --repo Forth-AI/work-ssot --json number,title,body \
+  --jq "[.[] | select(.body | test(\"Parent:?\\s*#$STORY_ID\"; \"i\")) | select(.title | startswith(\"[BE]\"))] | first | .number")
+```
+
+If FE and BE sub-issues exist:
+1. Read their bodies for TDD tasks
+2. Build can execute FE tasks and BE tasks independently
+3. Write to plan-result.md: `fe_issue: $FE_ISSUE`, `be_issue: $BE_ISSUE`
+
+If `HAS_TDD = 0` and no FE/BE sub-issues:
+1. Proceed with existing Phase 1 plan sub-agent (unchanged)
 
 **Goal:** Create a ralph-optimized implementation plan with TDD tasks.
 

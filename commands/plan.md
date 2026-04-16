@@ -1,11 +1,17 @@
 ---
 name: plan
-description: "Create a ralph-optimized implementation plan for autonomous fire-and-forget execution"
+description: "Create implementation plans for ad-hoc work ([FIX], [CHORE], spikes). For epic-driven features, use /super-ralph:design instead."
 argument-hint: "<feature-description> [--mode standard|hybrid|auto] [--output PATH] [--story EPIC_PATH#STORY_ID]"
 allowed-tools: ["Bash(git:*)", "Bash(bun:*)", "Bash(npm:*)", "Read", "Write", "Glob", "Grep", "Task", "WebSearch", "WebFetch"]
 ---
 
 # Super-Ralph Plan Command
+
+> **Note:** For epic-driven product features, use `/super-ralph:design` instead — it produces implementation-ready stories with embedded TDD tasks. This command is for:
+> - `[FIX]` hotfixes and bug fixes
+> - `[CHORE]` infrastructure, DevOps, dependency upgrades
+> - Exploratory spikes and prototypes
+> - Small ad-hoc improvements by tech lead
 
 Create an implementation plan optimized for autonomous Ralph Loop execution with superpowers integration.
 

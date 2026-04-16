@@ -1,35 +1,195 @@
 ---
 name: product-design
-description: This skill should be used when writing epics and user stories from product vision, business goals, or user feedback. Triggers when /super-ralph:design is invoked, or when the user mentions "write epics", "create user stories", "product design", "acceptance criteria", "feature breakdown", "e2e test scenarios", or wants to translate business goals into structured development artifacts. Produces BDD-style acceptance criteria that feed directly into /super-ralph:plan as e2e test scaffolding.
+description: "Create epics and user stories with Gherkin acceptance criteria, TDD tasks, FE/BE sub-issues, and pre-decided implementation contracts. Triggers when /super-ralph:design is invoked, or when the user mentions 'write epics', 'create user stories', 'product design', 'acceptance criteria', 'feature breakdown', 'e2e test scenarios', or wants to translate business goals into structured development artifacts. Produces implementation-ready stories that feed directly into /super-ralph:build-story without a separate plan step."
 ---
 
-# Product Design — Epics & Stories
+# Product Design -- Epics & Stories
 
 ## Overview
 
-Translate product vision, business goals, and user feedback into structured epics and user stories with BDD acceptance criteria. The acceptance criteria serve dual purpose: defining "done" for stakeholders AND generating e2e/behavior test scaffolding for implementation plans.
+Translate product vision, business goals, and user feedback into structured epics and implementation-ready user stories. Every story includes Gherkin acceptance criteria, pre-decided implementation contracts, FE/BE sub-issues with TDD tasks, and shared type definitions. Stories are immediately buildable -- no separate planning step required.
 
-**Announce at start:** "I'm using the product-design skill to create epics and stories with testable acceptance criteria."
+**Announce at start:** "I'm using the product-design skill to create epics and implementation-ready stories with Gherkin AC, shared contracts, and TDD tasks."
 
-**Core insight:** Acceptance criteria written in Given/When/Then format are directly translatable to e2e test cases. This creates traceability from business goal to passing test — every story is verifiable by a machine.
+**Core insight:** A story is not "designed" until a developer can start coding without asking questions. Pre-decided implementation (schema, service signatures, route contracts, component specs, i18n keys) eliminates ambiguity. Gherkin scenarios map 1:1 to test cases. The design phase does the thinking; the build phase does the typing.
 
 ## The Outside-In Pipeline
 
 ```
 Vision / Goals / Feedback
-    ↓ /super-ralph:design
-Epic (docs/epics/YYYY-MM-DD-<slug>.md)
-    ├── Story 1 → Acceptance Criteria → E2E Test Skeleton
-    ├── Story 2 → Acceptance Criteria → E2E Test Skeleton
-    └── Story N → Acceptance Criteria → E2E Test Skeleton
-    ↓ /super-ralph:plan --story <path>#story-N
-Implementation Plan (docs/plans/YYYY-MM-DD-<slug>.md)
-    ├── Task 0: E2E test from acceptance criteria (outer RED)
-    ├── Task 1-N: TDD implementation tasks (inner red-green)
-    └── Final: E2E test goes GREEN
+    |  /super-ralph:design (single command, 6-phase SADD)
+Epic (docs/epics/) + GitHub Issues
+    |-- [STORY] -- Gherkin AC + Shared Contract + E2E skeleton
+    |   |-- [BE] -- Schema + Service + Route + TDD tasks
+    |   +-- [FE] -- Component + Mock data + i18n + TDD tasks
+    |  /super-ralph:build-story #N (no plan step needed)
+Implementation -> PR -> Merge -> Deploy
 ```
 
-The outer e2e test starts red and stays red until all inner TDD tasks complete. When it goes green, the story is delivered.
+Each story is immediately buildable via `/super-ralph:build-story #N`. No intermediate `/plan` step exists.
+
+## SLICE Decomposition
+
+Before writing any story, apply the SLICE test to ensure it is the right size and shape.
+
+| Letter | Check | Question | If No |
+|--------|-------|----------|-------|
+| **S** | System boundary | Does this cross BE+FE in one user action? | OK -- vertical slices should |
+| **L** | Lifecycle stage | Does this cover only ONE CRUD operation? | Split by operation (create vs update vs delete) |
+| **I** | Interaction type | Does this touch only ONE surface (list/detail/form/action)? | Split by surface (list page != detail page) |
+| **C** | Configuration vs operation | Does this mix admin config with operator usage? | Split into config story + usage story |
+| **E** | Error surface | Does this have <=3 error modes? | Split error handling into a separate story |
+
+### Additional Splitting Rules
+
+| Rule | Threshold | Action |
+|------|-----------|--------|
+| One schema migration = one story | If migration has >2 tables | Split tables into separate stories |
+| One state machine = one story | If >4 states | Split into init + transitions stories |
+| List != Detail | Always | Separate stories for list page and detail page |
+| 45-minute Sonnet rule | If estimated >90 min AI-time | Must split |
+
+### Size Targets
+
+- **Target:** S or M for every story
+- **L:** Acceptable only for complex workflows with justification
+- **XL:** Must split -- no exceptions
+- **Epic target:** 8-15 stories per epic
+
+## AI-Readable Documentation Standard
+
+All design output must be optimized for AI consumption. Every sentence must be actionable or removable.
+
+| Rule | Bad | Good |
+|------|-----|------|
+| Tables over prose | "The slice includes a backend service, a database migration, and a frontend component..." | Vertical Slice table with Layer/File/Action columns |
+| Expected output | `Run: bun test` | `Run: bun test foo.test.ts` / `Expected: PASS -- 2 passed` |
+| Concrete values | "appropriate error message" | `"Vendor is required"` |
+| Pre-decided | "Choose between JWT and session auth" | "Use JWT Bearer. See `work-agents/src/middleware/auth.ts`." |
+| No filler | "This is important because..." | `**Required for:** Task N+1` |
+| Exact paths | "in the schema file" | `work-agents/src/db/schema.ts` -- append to `// --- [Feature] ----` |
+
+### Template Order = TDD Loop
+
+Within each sub-issue (FE or BE), tasks follow the TDD loop order:
+
+1. Progress check (how to detect this task is done)
+2. Files to create/modify (exact paths)
+3. Write failing test (complete test code)
+4. Expected fail output
+5. Implement (complete implementation code)
+6. Expected pass output
+7. Commit message
+
+## Pre-Decided Implementation
+
+Every story with Size >= M must have these sections filled by the design agent after reading the codebase. The design agent reads existing code to match patterns, not invent new ones.
+
+### Required Sections
+
+**Schema Changes:**
+```typescript
+// work-agents/src/db/schema.ts -- append to // --- [Feature] ----
+export const tableName = pgTable("table_name", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  orgId: text("org_id").notNull().references(() => organizations.id),
+  // ... exact columns with types and constraints
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+```
+
+**Service Interface:**
+```typescript
+// work-agents/src/services/feature-name.ts
+export async function getResources(db: DB, orgId: string): Promise<Resource[]>
+export async function createResource(db: DB, orgId: string, input: CreateInput): Promise<Resource>
+export async function updateResource(db: DB, orgId: string, id: string, input: UpdateInput): Promise<Resource>
+```
+
+**Route Contract:**
+
+| Method | Path | Auth | Request Body | Response 200 | Errors |
+|--------|------|------|-------------|--------------|--------|
+| GET | `/api/orgs/:orgId/resources` | Bearer | -- | `{ data: Resource[] }` | 401, 403 |
+| POST | `/api/orgs/:orgId/resources` | Bearer | `CreateInput` | `{ data: Resource }` | 400, 401, 403 |
+
+**Component Spec:**
+```typescript
+interface ResourceListProps {
+  orgId: string;
+  onSelect: (id: string) => void;
+}
+// State: loading, error, data (from useQuery)
+// Events: onSelect, onDelete, onRefresh
+// Error states: empty list, fetch error, delete confirmation
+```
+
+**i18n Keys:**
+```typescript
+// work-web/src/i18n/en.ts -- append to feature section
+featureKey: {
+  title: "Resources",           // zh-CN: "..."
+  create: "Create Resource",    // zh-CN: "..."
+  deleteConfirm: "Delete this resource?", // zh-CN: "..."
+  empty: "No resources yet",    // zh-CN: "..."
+}
+```
+
+**Patterns to Follow:**
+```
+// Reference existing implementations the dev should mirror
+Service pattern: work-agents/src/services/knowledge.ts
+Route pattern: work-agents/src/routes/knowledge.ts
+Page pattern: work-web/src/app/(app)/[orgId]/knowledge/page.tsx
+```
+
+## Story Planner Sub-Agents (Phase 4)
+
+During Phase 4 of the SADD process, the design agent dispatches sub-agents to flesh out each story. Each sub-agent operates independently and produces a specific section of the story.
+
+### Sub-Agent: Schema Planner
+
+**Receives:** Story user-story text, scope description, existing `schema.ts`
+**Produces:** Exact Drizzle table definitions, relations, indexes, enums
+**Rules:** Match existing naming conventions, use `createId()` for PKs, always include `orgId` for tenant isolation, add `createdAt`/`updatedAt`
+
+### Sub-Agent: Service Planner
+
+**Receives:** Schema output, existing service files for pattern matching
+**Produces:** Function signatures with full TypeScript types, error types, validation rules
+**Rules:** Match existing service patterns (e.g., `knowledge.ts`), use `DB` type from drizzle, return typed results
+
+### Sub-Agent: Route Planner
+
+**Receives:** Service interface, existing route files
+**Produces:** Route contract table, Zod validation schemas, error response map
+**Rules:** Follow Hono patterns from existing routes, use `zValidator` middleware, standard error codes
+
+### Sub-Agent: FE Planner
+
+**Receives:** Route contract, existing page/component files
+**Produces:** Component props interface, API client functions, page layout spec, i18n key-value pairs
+**Rules:** Match existing Next.js app router patterns, use `useQuery`/`useMutation` hooks, follow existing i18n structure
+
+### Sub-Agent: Gherkin Writer
+
+**Receives:** User story, component spec, route contract, error modes
+**Produces:** Complete Gherkin feature file with Background, Scenarios (HAPPY/EDGE/SECURITY), Scenario Outlines
+**Rules:** Max 6 scenarios per story, concrete test data, mandatory Background for auth context, category labels on every scenario
+
+## Story-to-Build Mapping
+
+Since stories are immediately buildable via `/super-ralph:build-story`, the following mapping shows how story elements translate to build execution:
+
+| Story Element | Build Execution Element |
+|---|---|
+| Gherkin AC | E2E test skeleton in [STORY] issue |
+| Pre-Decided Implementation | TDD tasks in [FE] and [BE] sub-issues |
+| Priority (P0/P1/P2) | Wave assignment in Execution Plan |
+| Dependencies (Story N) | Execution plan ordering |
+| Shared Contract | Types file created in Task 0 of both FE and BE |
+| Patterns to Follow | Reference files for the executing agent |
 
 ## Epic Structure
 
@@ -37,23 +197,24 @@ Every epic follows the template in `references/epic-template.md`.
 
 ### Required Sections
 
-1. **Title** — Clear, outcome-focused name
-2. **Business Context** — Why this epic exists, what business problem it solves
-3. **Success Metrics** — Measurable outcomes (not output metrics like "feature shipped")
-4. **Personas** — Who benefits and how (reference product vision personas)
-5. **Scope** — What's in and explicitly what's out
-6. **Stories** — Ordered list of user stories with acceptance criteria
-7. **Dependencies** — What must exist before this epic can start
-8. **Risks** — What could go wrong, with mitigation strategies
+1. **PM Summary** -- What we're building, story priority matrix, success metrics, parking lot, PM decision points
+2. **Business Context** -- Why this epic exists, what business problem it solves
+3. **Success Metrics** -- Measurable outcomes (not output metrics like "feature shipped")
+4. **Personas** -- Who benefits and how (reference product vision personas)
+5. **Scope** -- What's in and explicitly what's out
+6. **Stories** -- Ordered list using the story template with Gherkin AC
+7. **Execution Plan** -- AI-hours, waves, critical path
+8. **Dependencies** -- What must exist before this epic can start
+9. **Risks** -- What could go wrong, with mitigation strategies
 
 ### Sizing Guidelines
 
-| Epic Size | Stories | Implementation Plans | Suitable For |
-|-----------|---------|---------------------|--------------|
-| Small | 2-4 | 1 plan | Single feature or improvement |
-| Medium | 5-8 | 1-2 plans | Feature set or workflow |
-| Large | 9-15 | 2-4 plans (phased) | Major capability or system |
-| Too Large | 15+ | Split into multiple epics | — |
+| Epic Size | Stories | Suitable For |
+|-----------|---------|--------------|
+| Small | 2-4 | Single feature or improvement |
+| Medium | 5-8 | Feature set or workflow |
+| Large | 9-15 | Major capability or system |
+| Too Large | 15+ | Split into multiple epics |
 
 ## Story Structure
 
@@ -69,64 +230,49 @@ Every story follows the template in `references/story-template.md`.
 **so that** [measurable outcome].
 
 **Priority:** P0 (must-have) | P1 (should-have) | P2 (nice-to-have)
-**Size:** S | M | L | XL
+**Size:** S | M | L
+**Depends on:** Story N-1 | None
 ```
 
-### Acceptance Criteria (BDD Format)
+### Acceptance Criteria (Gherkin Format)
 
-Write every acceptance criterion in Given/When/Then format. Each criterion becomes one e2e test case.
+Write every acceptance criterion as a Gherkin scenario. Each scenario becomes one test case. See `references/acceptance-criteria-guide.md` for the full guide.
 
-```markdown
-#### Acceptance Criteria
+```gherkin
+Feature: [Story title]
+  Background:
+    Given I am logged in as [persona] with orgId "org-123"
+    And [workspace/data precondition]
 
-- [ ] **Given** I am on the agent builder page
-      **When** I select a template and click "Create"
-      **Then** a new agent is created with the template's default configuration
-      **And** I am redirected to the agent editor
+  Scenario: [HAPPY] Create a resource
+    Given I am on the resources page
+    When I click "Create" and fill in name "Test Resource"
+    Then a resource named "Test Resource" appears in the list
+    And its status is "Active"
 
-- [ ] **Given** I have an agent in draft status
-      **When** I click "Deploy"
-      **Then** the agent status changes to "Active"
-      **And** a confirmation message shows the agent's endpoint
+  Scenario: [EDGE] Duplicate name rejected
+    Given a resource named "Test Resource" already exists
+    When I try to create another with name "Test Resource"
+    Then I see error: "A resource with this name already exists"
 ```
 
-Rules for good acceptance criteria:
-- One observable behavior per criterion
-- No implementation details (test WHAT, not HOW)
-- Include both happy path and key error paths
-- Every criterion must be machine-verifiable via UI or API test
-- Use concrete values where possible ("shows 3 items" not "shows items")
+### Sub-Issue Structure
 
-### E2E Test Skeleton
+Each story produces three GitHub issues:
 
-Generate a test skeleton from the acceptance criteria. This skeleton feeds into `/super-ralph:plan` as the outer test loop.
-
-```typescript
-// tests/e2e/[story-slug].test.ts
-describe("[Story title]", () => {
-  test("creates agent from template", async () => {
-    // Given: on agent builder page
-    // When: select template and click Create
-    // Then: new agent created, redirected to editor
-  });
-
-  test("deploys draft agent", async () => {
-    // Given: agent in draft status
-    // When: click Deploy
-    // Then: status = Active, confirmation shown
-  });
-});
-```
+1. **[STORY] #N** -- The parent with Gherkin AC, shared contract, and E2E skeleton
+2. **[BE] #N** -- Backend sub-issue with schema, service, route, and TDD tasks
+3. **[FE] #N** -- Frontend sub-issue with component, API client, i18n, and TDD tasks
 
 ## Writing Good Epics and Stories
 
 ### Deriving from Vision
 
 Read the product vision document and extract:
-- **Personas** — Map story "As a..." to vision's target users
-- **Capabilities** — Map stories to vision's solution pillars
-- **Principles** — Ensure stories respect vision's core principles
-- **Non-goals** — Reject stories that conflict with stated non-goals
+- **Personas** -- Map story "As a..." to vision's target users
+- **Capabilities** -- Map stories to vision's solution pillars
+- **Principles** -- Ensure stories respect vision's core principles
+- **Non-goals** -- Reject stories that conflict with stated non-goals
 
 ### Deriving from User Feedback
 
@@ -146,114 +292,126 @@ When input is business metrics or OKRs:
 
 ## Autonomous Decision Pattern
 
-When ambiguity arises during epic/story creation — scope boundaries, persona priorities, acceptance criteria precision — apply the same autonomous decision pattern used throughout super-ralph:
+When ambiguity arises during epic/story creation -- scope boundaries, persona priorities, acceptance criteria precision, implementation choices -- apply the autonomous decision pattern:
 
-1. Dispatch research-agent for market/competitor/UX references
+1. Dispatch research-agent for codebase patterns, market/competitor/UX references
 2. Dispatch 1-2 sme-brainstormer agents to evaluate options
 3. Pick the option with strongest evidence
 4. Document the decision in the epic
-5. Proceed — NEVER wait for human input
-
-## Integration with super-ralph Pipeline
-
-### Feeding into /super-ralph:plan
-
-When invoking `/super-ralph:plan` with a story reference:
-
-```
-/super-ralph:plan --story docs/epics/2026-02-16-agent-builder.md#story-1
-```
-
-The plan command should:
-1. Read the referenced story and its acceptance criteria
-2. Generate e2e test file as Task 0 (outer RED)
-3. Generate TDD implementation tasks (inner cycles)
-4. Set completion criteria: e2e tests pass (outer GREEN)
-
-### Story-to-Plan Mapping
-
-| Story Element | Plan Element |
-|---|---|
-| Acceptance criteria (Given/When/Then) | E2E test cases (Task 0) |
-| Priority (P0/P1/P2) | Task ordering |
-| Size (S/M/L/XL) | Iteration budget |
-| Dependencies | Plan prerequisites section |
+5. Proceed -- NEVER wait for human input
 
 ## Output Location
 
 1. Save epics to `docs/epics/YYYY-MM-DD-<slug>.md` (create the directory if needed)
-2. Create `[EPIC]` issue on GitHub with sub-issues for each story (see GitHub Issue Creation section)
+2. Create `[EPIC]` issue on GitHub with `[STORY]` sub-issues (each with `[BE]` and `[FE]` sub-issues)
 3. Add all issues to Project #9 board
 
 ## GitHub Issue Creation
 
-After writing the epic markdown file, also create GitHub Issues to track the work on the ForthAI Work Project #9 board.
+After writing the epic markdown file, create GitHub Issues to track the work.
 
-### Creating an [EPIC] Issue from an Epic
-
-After saving the epic to `docs/epics/`, create a corresponding `[EPIC]` issue:
+### Creating an [EPIC] Issue
 
 ```bash
-gh issue create \
-  --title "[EPIC] <Epic title>" \
+gh issue create --title "[EPIC] <Epic title>" \
   --label "area/<backend|frontend|fullstack>" \
   --milestone "<active milestone>" \
   --body "$(cat <<'EOF'
 ## Goal
-<Epic business context — 1-2 sentences>
+<Epic business context -- 1-2 sentences>
 
 ## Stories
-<Checklist of [STORY] items from the epic>
+- [ ] [STORY] Story 1
+- [ ] [STORY] Story 2
 
 ## Epic Document
 docs/epics/YYYY-MM-DD-<slug>.md
-
-## Notes
-<Dependencies, risks from the epic>
 EOF
 )" --repo Forth-AI/work-ssot
-# Add to Project #9, set fields: Type=epic, Size, Priority
 ```
 
-### Creating [STORY] Issues from Stories
+### Creating [STORY] Issues with [BE]/[FE] Sub-Issues
 
-For each story in the epic, create a `[STORY]` issue:
+For each story, create three issues:
 
 ```bash
-gh issue create \
-  --title "[STORY] <Story title>" \
-  --label "vertical-slice,area/<backend|frontend|fullstack>" \
+# 1. [STORY] parent
+gh issue create --title "[STORY] <Story title>" \
+  --label "vertical-slice,area/fullstack" \
   --body "$(cat <<'EOF'
 **Parent:** #<epic-issue-number>
 
 ## User Story
-**As a** <persona>,
-**I want** <action>,
-**So that** <outcome>.
+**As a** <persona>, **I want** <action>, **So that** <outcome>.
 
-## Acceptance Criteria
-<BDD criteria from the story>
+## Acceptance Criteria (Gherkin)
+<Full Gherkin feature from the story>
+
+## Shared Contract
+<TypeScript types shared between FE and BE>
 EOF
 )" --repo Forth-AI/work-ssot
-# Add to Project #9, set fields: Type=story, Size, Priority
+
+# 2. [BE] sub-issue
+gh issue create --title "[BE] <Story title> -- backend" \
+  --label "area/backend" \
+  --body "$(cat <<'EOF'
+**Parent:** #<story-issue-number>
+
+## Scope
+Schema, service, route, route registration, tests
+
+## TDD Tasks
+### Task 1: Schema migration
+**Progress check:** `grep -q "tableName" work-agents/src/db/schema.ts`
+**Files:** Modify `work-agents/src/db/schema.ts`
+...
+
+### Task 2: Service layer
+...
+
+### Task 3: Route + registration
+...
+EOF
+)" --repo Forth-AI/work-ssot
+
+# 3. [FE] sub-issue
+gh issue create --title "[FE] <Story title> -- frontend" \
+  --label "area/frontend" \
+  --body "$(cat <<'EOF'
+**Parent:** #<story-issue-number>
+
+## Scope
+Component, API client, i18n, mock data, page
+
+## PM Checkpoints
+- [ ] CP1: Shell renders with mock data
+- [ ] CP2: Happy path works with real API
+- [ ] CP3: Edge cases and error states handled
+- [ ] CP4: PM sign-off (i18n, accessibility, responsive)
+
+## TDD Tasks
+### Task 1: API client + types
+...
+
+### Task 2: Component with mock data
+...
+
+### Task 3: Page integration
+...
+EOF
+)" --repo Forth-AI/work-ssot
 ```
 
 **Rules:**
-- [STORY] issues use the `[STORY]` title prefix
+- [STORY] issues use `vertical-slice` label and `area/fullstack`
+- [BE] and [FE] sub-issues reference their parent [STORY]
 - Size is set via Project #9 field, not labels
-- [STORY] issues are NOT pre-assigned (devs self-assign)
+- Sub-issues are NOT pre-assigned (devs self-assign)
 - Add all issues to Project #9: `gh project item-add 9 --owner Forth-AI --url <issue-url>`
-
-### Epic Size Mapping
-
-| Epic Size | Stories | Project Field |
-|-----------|---------|---------------|
-| Small (2-4 stories) | 2-4 | Size=L |
-| Medium (5-8 stories) | 5-8 | Size=XL |
-| Large (9+ stories) | 9+ | Split into multiple `[EPIC]` issues |
 
 ## References
 
-- `references/epic-template.md` — Complete fill-in-the-blanks epic template
-- `references/story-template.md` — Story template with BDD acceptance criteria and e2e skeleton
-- `references/acceptance-criteria-guide.md` — Detailed guide for writing machine-verifiable acceptance criteria
+- `references/epic-template.md` -- Complete epic template with PM Summary and Execution Plan
+- `references/story-template.md` -- Story template with Gherkin AC, shared contract, pre-decided implementation, and FE/BE sub-issue scope
+- `references/acceptance-criteria-guide.md` -- Gherkin format guide with category labels, Gherkin-to-bun:test mapping, and coverage patterns

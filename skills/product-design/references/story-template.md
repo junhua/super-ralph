@@ -1,6 +1,6 @@
 # Story Template
 
-Use this template for individual user stories within an epic. Each story is independently plannable and deliverable.
+Use this template for individual user stories within an epic. Each story is independently buildable via `/super-ralph:build-story #N` -- no separate plan step required.
 
 ---
 
@@ -9,143 +9,283 @@ Use this template for individual user stories within an epic. Each story is inde
 ```markdown
 ### Story N: [Action-Oriented Title]
 
-**As a** [specific persona from product vision — not "user"],
-**I want to** [concrete action — verb phrase],
-**so that** [measurable outcome — not "I can do X" but "X is achieved"].
+**As a** [specific persona from product vision -- not "user"],
+**I want to** [concrete action -- verb phrase],
+**so that** [measurable outcome -- not "I can do X" but "X is achieved"].
 
 **Priority:** P0 (must-have for MVP) | P1 (should-have) | P2 (nice-to-have)
-**Size:** S (1-2 TDD tasks) | M (3-5 tasks) | L (6-10 tasks) | XL (split this story)
-
-**Epic:** [Parent epic reference]
-**Depends on:** [Story N-1, or "None"]
+**Size:** S (1-2 TDD tasks) | M (3-5 tasks) | L (6-10 tasks)
+**Depends on:** Story N-1 | None
 ```
 
-## Acceptance Criteria Format
+## Acceptance Criteria (Gherkin Format)
 
-Write in BDD Given/When/Then. Each criterion = one e2e test case.
+Write every acceptance criterion as a Gherkin scenario. Each scenario maps 1:1 to a test case. Use category labels on every scenario.
 
-### Rules
+### Gherkin Structure
 
-1. **One behavior per criterion** — If you write "and" between two unrelated outcomes, split into two criteria
-2. **Observable results only** — Test what the user sees/experiences, not internal state
-3. **Concrete values** — "shows 3 agents" not "shows agents"; "within 2 seconds" not "quickly"
-4. **Include error paths** — At minimum: one happy path, one validation error, one system error
-5. **No implementation details** — "Then a confirmation appears" not "Then a toast component renders"
+```gherkin
+Feature: [Story title]
+  Background:
+    Given I am logged in as [persona] with orgId "org-123"
+    And [workspace/data precondition]
 
-### Happy Path Example
+  Scenario: [HAPPY] [description of happy path]
+    Given [precondition with concrete data]
+    When [single user action]
+    Then [observable outcome with specific values]
+    And [additional assertion]
 
-```markdown
-- [ ] **Given** I am a business operator on the agent builder page
-      **When** I select the "Invoice Processing" template
-      **And** I click "Create Agent"
-      **Then** a new agent named "Invoice Processing Agent" appears in my agent list
-      **And** its status is "Draft"
-      **And** I am redirected to the agent configuration page
+  Scenario: [EDGE] [description of boundary condition]
+    Given [boundary precondition -- empty state, max limit, duplicate]
+    When [action that triggers the edge case]
+    Then [graceful handling with specific message]
+
+  Scenario: [SECURITY] [description of auth/authz case]
+    Given I am logged in as [unauthorized persona]
+    When [action requiring higher permission]
+    Then I see: "You don't have permission to perform this action"
+    And the resource is unchanged
+
+  Scenario Outline: [HAPPY] [parameterized case description]
+    Given [precondition with <variable>]
+    When [action]
+    Then [outcome with <expected>]
+    Examples:
+      | variable | expected |
+      | val1     | result1  |
+      | val2     | result2  |
+      | val3     | result3  |
 ```
 
-### Validation Error Example
+### Scenario Category Labels
 
-```markdown
-- [ ] **Given** I am creating an agent
-      **When** I leave the agent name empty
-      **And** I click "Create Agent"
-      **Then** a validation message appears: "Agent name is required"
-      **And** the agent is NOT created
-```
+| Label | When to Use | Required? |
+|-------|------------|-----------|
+| `[HAPPY]` | Primary success path | Yes, at least 1 |
+| `[EDGE]` | Boundary conditions, empty states, limits | Yes, at least 1 |
+| `[SECURITY]` | Authentication, authorization, role checks | Yes, for any story with role-based access |
+| `[PERF]` | Performance requirements, latency targets | Only for perf-critical stories |
 
-### System Error Example
+### Rules for Good Scenarios
 
-```markdown
-- [ ] **Given** I am deploying an agent
-      **When** the backend API is unreachable
-      **Then** an error message appears: "Unable to deploy. Please try again or contact support."
-      **And** the agent remains in "Draft" status
-```
+1. **One behavior per scenario** -- If "And" joins two unrelated outcomes, split into two scenarios
+2. **Max 6 scenarios per story** -- If you need more, the story is too large (SLICE it)
+3. **Concrete data** -- "3 agents" not "some agents"; `"Vendor is required"` not "error message"
+4. **API assertions in UI scenarios** -- When a UI action triggers an API call, assert both the UI feedback AND the API result
+5. **Mandatory Background** -- Always include auth context (persona + orgId) in Background
+6. **Category label on every Scenario** -- No unlabeled scenarios allowed
 
-### Edge Case Example
+### Gherkin-to-bun:test Mapping
 
-```markdown
-- [ ] **Given** I have reached the maximum agent limit (10 agents)
-      **When** I try to create a new agent
-      **Then** a message appears: "Agent limit reached. Upgrade your plan or archive existing agents."
-      **And** the "Create Agent" button is disabled
-```
+| Gherkin Element | bun:test Element | Example |
+|----------------|-----------------|---------|
+| `Feature:` | `describe()` | `describe("Create Resource", () => { ... })` |
+| `Background:` | `beforeEach()` | `beforeEach(async () => { await login("operator") })` |
+| `Scenario:` | `test()` | `test("[HAPPY] creates resource", async () => { ... })` |
+| `Scenario Outline:` | `test.each()` | `test.each(examples)("[HAPPY] creates %s", ...)` |
+| `Given` | Test setup | Variable initialization, fixture loading |
+| `When` | Test action | API call, UI interaction |
+| `Then` / `And` | `expect()` | `expect(response.status).toBe(201)` |
 
-## E2E Test Skeleton
+## Shared Contract
 
-Generate from acceptance criteria. Maps 1:1 — every criterion becomes a test case.
+Define TypeScript types shared between FE and BE. These go into both the [STORY] issue body and are implemented as the first task in both [BE] and [FE] sub-issues.
 
 ```typescript
-// tests/e2e/[story-slug].test.ts
-import { describe, test, expect } from "bun:test";
+// Shared types for this story
+export type ResourceName = {
+  id: string;
+  orgId: string;
+  name: string;
+  status: "active" | "archived";
+  createdAt: string;
+  updatedAt: string;
+};
 
-describe("Story N: [Title]", () => {
-  // Happy path
-  test("creates agent from template", async () => {
-    // Given: business operator on agent builder page
-    // When: select "Invoice Processing" template, click "Create Agent"
-    // Then: agent appears in list, status = Draft, redirected to config
-  });
+export type CreateResourceInput = Pick<ResourceName, "name">;
+export type UpdateResourceInput = Partial<Pick<ResourceName, "name" | "status">>;
+```
 
-  // Validation error
-  test("rejects empty agent name", async () => {
-    // Given: creating an agent
-    // When: leave name empty, click "Create Agent"
-    // Then: validation message, agent NOT created
-  });
+## Pre-Decided Implementation
 
-  // System error
-  test("handles API failure gracefully", async () => {
-    // Given: deploying an agent
-    // When: API unreachable
-    // Then: error message, agent stays Draft
-  });
+Every story with Size >= M must include these sections. The design agent fills them by reading the codebase.
 
-  // Edge case
-  test("prevents creation at agent limit", async () => {
-    // Given: 10 agents exist (max)
-    // When: try to create new agent
-    // Then: limit message, button disabled
-  });
+### Schema
+
+```typescript
+// work-agents/src/db/schema.ts -- append to // --- [Feature] ----
+export const resources = pgTable("resources", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  orgId: text("org_id").notNull().references(() => organizations.id),
+  name: text("name").notNull(),
+  status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+```
+
+### Service Interface
+
+```typescript
+// work-agents/src/services/resources.ts
+export async function listResources(db: DB, orgId: string): Promise<Resource[]>
+export async function getResource(db: DB, orgId: string, id: string): Promise<Resource | null>
+export async function createResource(db: DB, orgId: string, input: CreateResourceInput): Promise<Resource>
+export async function updateResource(db: DB, orgId: string, id: string, input: UpdateResourceInput): Promise<Resource>
+export async function deleteResource(db: DB, orgId: string, id: string): Promise<void>
+```
+
+### Route Contract
+
+| Method | Path | Auth | Request Body | Response 200 | Errors |
+|--------|------|------|-------------|--------------|--------|
+| GET | `/api/orgs/:orgId/resources` | Bearer | -- | `{ data: Resource[] }` | 401, 403 |
+| GET | `/api/orgs/:orgId/resources/:id` | Bearer | -- | `{ data: Resource }` | 401, 403, 404 |
+| POST | `/api/orgs/:orgId/resources` | Bearer | `CreateResourceInput` | `{ data: Resource }` | 400, 401, 403 |
+| PATCH | `/api/orgs/:orgId/resources/:id` | Bearer | `UpdateResourceInput` | `{ data: Resource }` | 400, 401, 403, 404 |
+| DELETE | `/api/orgs/:orgId/resources/:id` | Bearer | -- | `204 No Content` | 401, 403, 404 |
+
+### Component Spec
+
+```typescript
+interface ResourceListProps {
+  orgId: string;
+  onSelect: (id: string) => void;
+}
+// State: loading (skeleton), error (error banner), data (table rows)
+// Events: onSelect (row click), onDelete (action menu), onRefresh (toolbar button)
+// Error states: empty list (empty state CTA), fetch error (retry banner), delete confirmation (dialog)
+```
+
+### i18n Keys
+
+```typescript
+// work-web/src/i18n/en.ts
+resources: {
+  title: "Resources",                    // zh-CN: "..."
+  create: "Create Resource",             // zh-CN: "..."
+  deleteConfirm: "Delete this resource?", // zh-CN: "..."
+  empty: "No resources yet",             // zh-CN: "..."
+  nameRequired: "Name is required",      // zh-CN: "..."
+  duplicateName: "A resource with this name already exists", // zh-CN: "..."
+}
+```
+
+### Patterns to Follow
+
+```
+Service pattern: work-agents/src/services/knowledge.ts
+Route pattern:   work-agents/src/routes/knowledge.ts
+Page pattern:    work-web/src/app/(app)/[orgId]/knowledge/page.tsx
+API client:      work-web/src/lib/api/knowledge.ts
+i18n pattern:    work-web/src/i18n/en.ts (knowledge section)
+```
+
+## FE Sub-Issue Scope
+
+The [FE] sub-issue covers everything the frontend developer needs to build.
+
+### Included Work
+
+- API client functions (typed fetch wrappers)
+- React components (matching Component Spec)
+- Page integration (Next.js app router)
+- i18n keys (en + zh-CN)
+- Mock data for development/testing
+
+### PM Checkpoints
+
+| Checkpoint | Gate | What PM Verifies |
+|-----------|------|-------------------|
+| CP1 | Shell | Component renders with mock data, layout matches spec |
+| CP2 | Happy path | CRUD operations work with real API |
+| CP3 | Edges | Error states, empty states, loading states all handled |
+| CP4 | Sign-off | i18n complete, responsive layout, accessibility basics |
+
+### TDD Tasks (Example)
+
+```markdown
+### Task 1: API client + types
+**Progress check:** `test -f work-web/src/lib/api/resources.ts`
+**Files:** Create `work-web/src/lib/api/resources.ts`, Test `work-web/src/lib/api/resources.test.ts`
+1. Write test: fetch mock returns typed response
+2. Implement: API client with typed fetch wrappers
+3. Commit: "feat(web): add resources API client"
+
+### Task 2: Resource list component
+**Progress check:** `test -f work-web/src/components/resources/resource-list.tsx`
+**Files:** Create component + test
+1. Write test: renders mock resources in table
+2. Implement: ResourceList component with loading/error/data states
+3. Commit: "feat(web): add ResourceList component"
+
+### Task 3: Page integration
+**Progress check:** `test -f work-web/src/app/(app)/[orgId]/resources/page.tsx`
+**Files:** Create page + route
+1. Write test: page renders ResourceList with real data hook
+2. Implement: Page with useQuery, loading skeleton, error boundary
+3. Commit: "feat(web): add resources page"
+```
+
+## BE Sub-Issue Scope
+
+The [BE] sub-issue covers everything the backend developer needs to build.
+
+### Included Work
+
+- Schema migration (Drizzle table definition)
+- Service layer (business logic functions)
+- Route handlers (Hono routes with Zod validation)
+- Route registration (append to `work-agents/src/index.ts`)
+- Tests (service + route integration tests)
+
+### TDD Tasks (Example)
+
+```markdown
+### Task 1: Schema migration
+**Progress check:** `grep -q "resources" work-agents/src/db/schema.ts`
+**Files:** Modify `work-agents/src/db/schema.ts`
+1. Write test: import table, assert columns exist
+2. Implement: Add pgTable definition to schema.ts
+3. Commit: "feat(agents): add resources schema"
+
+### Task 2: Service layer
+**Progress check:** `test -f work-agents/src/services/resources.ts`
+**Files:** Create `work-agents/src/services/resources.ts` + test
+1. Write test: createResource returns typed result
+2. Implement: CRUD service functions with error handling
+3. Commit: "feat(agents): add resources service"
+
+### Task 3: Route handlers + registration
+**Progress check:** `test -f work-agents/src/routes/resources.ts`
+**Files:** Create route file, modify `work-agents/src/index.ts`
+1. Write test: POST /api/orgs/:orgId/resources returns 201
+2. Implement: Hono routes with zValidator, register in index.ts
+3. Commit: "feat(agents): add resources routes"
 ```
 
 ## Story Sizing Guide
 
-| Size | Acceptance Criteria | TDD Tasks | Iterations | Example |
-|------|-------------------|-----------|------------|---------|
-| **S** | 2-3 | 1-2 | 5-10 | Add a button, simple validation |
-| **M** | 4-6 | 3-5 | 10-20 | CRUD for a resource, form with validation |
-| **L** | 7-10 | 6-10 | 20-35 | Multi-step wizard, complex workflow |
-| **XL** | 10+ | 10+ | 35+ | **Split into smaller stories** |
+| Size | Scenarios | TDD Tasks (BE+FE) | AI-Hours | Example |
+|------|-----------|-------------------|----------|---------|
+| **S** | 2-3 | 2-4 | 0.5-1h | Add a column, simple validation, toggle |
+| **M** | 4-5 | 4-8 | 1-3h | CRUD for a resource, form with validation |
+| **L** | 5-6 | 8-12 | 3-6h | Multi-step workflow, complex state management |
+| **XL** | 6+ | 12+ | 6h+ | **Must split -- apply SLICE decomposition** |
 
-If a story is XL, decompose it. Common split patterns:
-- **By user action:** "Create agent" and "Configure agent" are separate stories
-- **By persona:** "Operator creates agent" and "Admin sets permissions" are separate
-- **By error handling:** Happy path is one story, error handling is another (if complex)
-- **By platform:** "Web creates agent" and "API creates agent" are separate
+## SLICE Decomposition Checklist
 
-## Connecting to Implementation Plans
+Before finalizing any story, verify it passes SLICE:
 
-When a story is ready for implementation via `/super-ralph:plan`:
+- [ ] **S -- System boundary:** Crosses BE+FE in one user action? (OK for vertical slices)
+- [ ] **L -- Lifecycle:** Only ONE CRUD operation? (create != update != delete)
+- [ ] **I -- Interaction:** Only ONE surface? (list != detail != form != action dialog)
+- [ ] **C -- Config vs operation:** Admin config separate from operator usage?
+- [ ] **E -- Error surface:** <=3 error modes? (Otherwise split error handling out)
 
-1. The plan's **Task 0** generates e2e tests from the acceptance criteria skeleton
-2. Tasks 1-N implement the feature via TDD (inner loop)
-3. The plan's **Final Verification** confirms e2e tests pass (outer loop goes green)
-4. **Completion criteria** include: "E2E tests for Story N all pass"
-
-### Plan Command Integration
-
-```bash
-# Plan a single story
-/super-ralph:plan --story docs/epics/2026-02-16-agent-builder.md#story-1
-
-# Plan multiple stories (if independent)
-/super-ralph:plan --story docs/epics/2026-02-16-agent-builder.md#story-1,story-2
-```
-
-The `--story` flag tells the plan command to:
-1. Read the story's acceptance criteria
-2. Generate e2e test scaffolding as Task 0
-3. Use the story's complexity to set iteration budget
-4. Reference the story's dependencies as plan prerequisites
+Common split patterns when SLICE fails:
+- **By CRUD:** "Create resource" and "Edit resource" are separate stories
+- **By surface:** "Resource list page" and "Resource detail page" are separate stories
+- **By persona:** "Operator manages resources" and "Admin configures resource policies" are separate
+- **By error complexity:** Happy path is one story, complex error handling is another
