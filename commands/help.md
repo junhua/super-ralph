@@ -11,11 +11,13 @@ Display comprehensive help for the super-ralph plugin.
 ## Output the following help text:
 
 ```
-# Super-Ralph v0.8.0 — Design-First Autonomous Development
+# Super-Ralph v0.9.0 — Design-First Autonomous Development
 
-Super-ralph is a design-first autonomous development plugin. /design is the single
-entry point: it produces implementation-ready GitHub issues with embedded TDD tasks,
-Gherkin acceptance criteria, and FE/BE sub-issues for concurrent development.
+Super-ralph is a project-agnostic, design-first autonomous development plugin.
+/design is the single entry point: it produces implementation-ready GitHub issues
+with embedded TDD tasks, Gherkin acceptance criteria, and FE/BE sub-issues for
+concurrent development. Project-specific values are loaded from
+.claude/super-ralph-config.md — run /super-ralph:init to generate it.
 
 ## Philosophy
 
@@ -233,8 +235,15 @@ Gherkin acceptance criteria, and FE/BE sub-issues for concurrent development.
   Category labels: [HAPPY], [EDGE], [SECURITY], [PERF]
   Max 6 scenarios per story. Concrete data everywhere.
 
+## Project Config
+
+  Super-ralph reads .claude/super-ralph-config.md for project-specific values:
+  repo, org, project board IDs, team members, codebase paths, production URLs.
+  Run /super-ralph:init to auto-generate this file for your project.
+
 ## Prerequisites
 
+  - .claude/super-ralph-config.md — project config (run /super-ralph:init)
   - claude-in-chrome — browser automation for verify/release
   - codex CLI (optional) — AI code review for release promotion
 ```
