@@ -195,6 +195,61 @@ The [FE] sub-issue covers everything the frontend developer needs to build.
 - Page integration (Next.js app router)
 - i18n keys (en + zh-CN)
 - Mock data for development/testing
+- Indicative layout (ASCII art)
+
+### Indicative Layout
+
+Every [FE] sub-issue must include an ASCII art layout showing the visual structure of the page or component. This gives the FE developer a spatial reference for how elements are arranged, without requiring a Figma mockup.
+
+#### Rules
+
+1. **Show structure, not styling** -- boxes for regions, labels for components, `[...]` for interactive elements
+2. **Mark responsive breakpoints** if layout changes between mobile/tablet/desktop
+3. **Label every region** with the component name or semantic purpose
+4. **Show state variants** if layout differs between states (e.g., empty vs populated)
+
+#### Format
+
+```
+┌─────────────────────────────────────────────┐
+│ PageTitle                    [+ Create btn]  │
+├─────────────────────────────────────────────┤
+│ ┌─── Filters ───────────────────────────┐   │
+│ │ [Status ▼]  [Search...]  [Date range] │   │
+│ └───────────────────────────────────────┘   │
+│                                             │
+│ ┌─── DataTable ─────────────────────────┐   │
+│ │ Name    │ Status  │ Amount │ Actions  │   │
+│ │─────────┼─────────┼────────┼──────────│   │
+│ │ Row 1   │ Active  │ $500   │ [⋮]     │   │
+│ │ Row 2   │ Draft   │ $1200  │ [⋮]     │   │
+│ └───────────────────────────────────────┘   │
+│                                             │
+│ ┌─── Pagination ────────────────────────┐   │
+│ │ ◀ 1 [2] 3 ... 10 ▶   Showing 20/195  │   │
+│ └───────────────────────────────────────┘   │
+└─────────────────────────────────────────────┘
+
+Empty state:
+┌─────────────────────────────────────────────┐
+│ PageTitle                    [+ Create btn]  │
+├─────────────────────────────────────────────┤
+│                                             │
+│         ┌─── EmptyState ──────────┐         │
+│         │   (illustration)        │         │
+│         │   "No resources yet"    │         │
+│         │   [Create your first]   │         │
+│         └─────────────────────────┘         │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+#### When to Show Multiple Layouts
+
+- **List + Detail split**: Show both the list view and the detail/edit panel
+- **Modal/Dialog flows**: Show the triggering page and the modal overlay
+- **Responsive**: Show desktop (≥1024px) and mobile (<768px) if layout differs substantially
+- **State variants**: Show populated, empty, loading skeleton, and error states when they have different structures
 
 ### PM Checkpoints
 

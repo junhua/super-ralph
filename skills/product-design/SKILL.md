@@ -127,6 +127,21 @@ interface ResourceListProps {
 // Error states: empty list, fetch error, delete confirmation
 ```
 
+**Indicative Layout (ASCII art):**
+```
+┌─────────────────────────────────────────────┐
+│ Resources                    [+ Create]      │
+├─────────────────────────────────────────────┤
+│ ┌─── DataTable ─────────────────────────┐   │
+│ │ Name    │ Status  │ Created │ Actions  │   │
+│ │─────────┼─────────┼─────────┼──────────│   │
+│ │ Item 1  │ Active  │ Apr 16  │ [⋮]     │   │
+│ │ Item 2  │ Draft   │ Apr 15  │ [⋮]     │   │
+│ └───────────────────────────────────────┘   │
+└─────────────────────────────────────────────┘
+```
+Show structure with box-drawing chars, `[...]` for interactive elements, labels for components. Include empty/error state variants when layout differs. Show responsive breakpoints if layout changes between mobile/desktop.
+
 **i18n Keys:**
 ```typescript
 // $I18N_BASE_FILE -- append to feature section
@@ -171,8 +186,8 @@ During Phase 4 of the SADD process, the design agent dispatches sub-agents to fl
 ### Sub-Agent: FE Planner
 
 **Receives:** Route contract, existing page/component files
-**Produces:** Component props interface, API client functions, page layout spec, i18n key-value pairs
-**Rules:** Match existing Next.js app router patterns, use `useQuery`/`useMutation` hooks, follow existing i18n structure
+**Produces:** Component props interface, API client functions, indicative layout (ASCII art), i18n key-value pairs
+**Rules:** Match existing Next.js app router patterns, use `useQuery`/`useMutation` hooks, follow existing i18n structure. Always produce an ASCII art layout showing spatial structure of the page using box-drawing characters (┌─┐│└─┘), `[...]` for interactive elements, and labels for component names. Include empty/error state variants when layout differs.
 
 ### Sub-Agent: Gherkin Writer
 
