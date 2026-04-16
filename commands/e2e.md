@@ -58,11 +58,28 @@ All inter-phase communication uses temp files. This prevents context overflow in
 
 Execute all steps in order. **NEVER ask for human input** at any point.
 
-### Step 0: Load Epic Context
+### Step 0a: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+
+Extract these values for use in all subsequent steps:
+- `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
+- `$ORG` — GitHub org (e.g., `Forth-AI`)
+- `$PROJECT_NUM` — Project board number
+- `$PROJECT_ID` — Project board GraphQL ID
+- `$STATUS_FIELD_ID` — Status field ID
+- `$STATUS_SHIPPED` — Shipped status option ID
+- `$BE_DIR` — Backend directory (e.g., `work-agents`)
+- `$FE_DIR` — Frontend directory (e.g., `work-web`)
+- `$BE_TEST_CMD` — Backend test command (e.g., `cd work-agents && bun test`)
+- `$FE_TEST_CMD` — Frontend test command (e.g., `cd work-web && bun test`)
+- `$APP_URL` — Production app URL (e.g., `https://app.forthai.work`)
+
+### Step 0b: Load Epic Context
 
 1. **Fetch the epic issue:**
    ```bash
-   gh issue view $EPIC_NUMBER --repo Forth-AI/work-ssot --json number,title,body,labels,milestone,state
+   gh issue view $EPIC_NUMBER --repo $REPO --json number,title,body,labels,milestone,state
    ```
 
 2. **Validate it's an epic:**
@@ -72,7 +89,7 @@ Execute all steps in order. **NEVER ask for human input** at any point.
 
 3. **Fetch all sub-issues (stories):**
    ```bash
-   gh issue list --repo Forth-AI/work-ssot --state all --json number,title,body,state,labels,assignees \
+   gh issue list --repo $REPO --state all --json number,title,body,state,labels,assignees \
      --jq '.[] | select(.body | test("Parent:?\\s*#'$EPIC_NUMBER'"; "i"))'
    ```
 
@@ -277,10 +294,10 @@ For each completed story **one at a time** (sequential to avoid merge conflicts)
    PR_NUMBER=$(cat "$E2E_DIR/stories/$STORY_NUMBER/review-result.md" | grep "pr_number:" | awk '{print $2}')
 
    # Wait for CI
-   gh pr checks $PR_NUMBER --repo Forth-AI/work-ssot --watch
+   gh pr checks $PR_NUMBER --repo $REPO --watch
 
    # Merge (squash into staging)
-   gh pr merge $PR_NUMBER --squash --delete-branch --repo Forth-AI/work-ssot
+   gh pr merge $PR_NUMBER --squash --delete-branch --repo $REPO
 
    # Pull merged changes
    git pull origin staging
@@ -290,7 +307,7 @@ For each completed story **one at a time** (sequential to avoid merge conflicts)
    ```bash
    DEPLOY_OK=false
    for i in $(seq 1 36); do
-     STATUS_URL=$(gh api repos/Forth-AI/work-ssot/deployments \
+     STATUS_URL=$(gh api repos/$REPO/deployments \
        --jq '[.[] | select(.ref=="staging")] | first | .statuses_url' 2>/dev/null)
      if [ -n "$STATUS_URL" ]; then
        STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
@@ -341,10 +358,10 @@ After all waves are done:
    ```
 3. **Close the epic issue** if all sub-issues are closed:
    ```bash
-   OPEN_SUBS=$(gh issue list --repo Forth-AI/work-ssot --json body,state \
+   OPEN_SUBS=$(gh issue list --repo $REPO --json body,state \
      --jq "[.[] | select(.body | test(\"Parent:?\\s*#$EPIC_NUMBER\"; \"i\")) | select(.state==\"OPEN\")] | length")
    if [ "$OPEN_SUBS" = "0" ]; then
-     gh issue close $EPIC_NUMBER --repo Forth-AI/work-ssot --comment "All stories shipped. Epic complete."
+     gh issue close $EPIC_NUMBER --repo $REPO --comment "All stories shipped. Epic complete."
    fi
    ```
 

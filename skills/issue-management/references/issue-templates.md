@@ -1,6 +1,8 @@
 # Issue Body Templates
 
-Copy-paste-ready issue body templates for each issue type in the ForthAI Work monorepo.
+> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md`.
+
+Copy-paste-ready issue body templates for each issue type in the monorepo.
 
 ## [EPIC] -- Feature Epic
 
@@ -268,7 +270,7 @@ See parent #[STORY_NUMBER] — Shared Contract section.
 
 ## Schema
 ```typescript
-// work-agents/src/db/schema.ts — append to // ─── [Feature] ────
+// $SCHEMA_FILE — append to // ─── [Feature] ────
 export const tableName = pgTable("table_name", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
   orgId: text("org_id").notNull().references(() => organizations.id),
@@ -280,7 +282,7 @@ export const tableName = pgTable("table_name", {
 
 ## Service Interface
 ```typescript
-// work-agents/src/services/[feature].ts
+// $BE_SERVICES_DIR/[feature].ts
 export async function getResources(db: DB, orgId: string): Promise<Resource[]>
 export async function createResource(db: DB, orgId: string, input: CreateInput): Promise<Resource>
 export async function updateResource(db: DB, orgId: string, id: string, input: UpdateInput): Promise<Resource>
@@ -298,8 +300,8 @@ export async function deleteResource(db: DB, orgId: string, id: string): Promise
 ## TDD Tasks
 
 ### Task 0: E2E Tests (outer RED)
-**Progress check:** `test -f work-agents/tests/e2e/[slug].test.ts`
-**File:** Create `work-agents/tests/e2e/[slug].test.ts`
+**Progress check:** `test -f $BE_DIR/tests/e2e/[slug].test.ts`
+**File:** Create `$BE_DIR/tests/e2e/[slug].test.ts`
 ```typescript
 import { describe, test, expect } from "bun:test";
 
@@ -318,15 +320,15 @@ describe("[Feature] E2E", () => {
   });
 });
 ```
-Run: `bun test work-agents/tests/e2e/[slug].test.ts`
+Run: `$RUNTIME test $BE_DIR/tests/e2e/[slug].test.ts`
 Expected: FAIL (endpoints don't exist yet)
 Commit: `git commit -m "test: add e2e for [feature] (outer red)"`
 
 ### Task 1: Schema & Migration
-**Progress check:** `grep -q "export const tableName" work-agents/src/db/schema.ts`
+**Progress check:** `grep -q "export const tableName" $SCHEMA_FILE`
 Step 1: Write test
 ```typescript
-// work-agents/src/services/[feature].test.ts
+// $BE_SERVICES_DIR/[feature].test.ts
 test("getResources returns empty array for new org", async () => {
   const result = await getResources(db, testOrgId);
   expect(result).toEqual([]);
@@ -338,7 +340,7 @@ Run / Expected: PASS
 Commit: `git commit -m "feat: add [feature] schema"`
 
 ### Task 2: Service Layer
-**Progress check:** `grep -q "export async function getResources" work-agents/src/services/[feature].ts`
+**Progress check:** `grep -q "export async function getResources" $BE_SERVICES_DIR/[feature].ts`
 Step 1: Write test [code]
 Run / Expected: FAIL
 Step 2: Implement [code]
@@ -346,7 +348,7 @@ Run / Expected: PASS
 Commit: `git commit -m "feat: add [feature] service"`
 
 ### Task 3: Route Layer
-**Progress check:** `grep -q "[feature]" work-agents/src/index.ts`
+**Progress check:** `grep -q "[feature]" $ROUTE_REG_FILE`
 Step 1: Write test [code]
 Run / Expected: FAIL
 Step 2: Implement routes + register
@@ -354,13 +356,13 @@ Run / Expected: PASS
 Commit: `git commit -m "feat: add [feature] routes"`
 
 ### Task 4: E2E Green
-Run: `bun test work-agents/tests/e2e/[slug].test.ts`
+Run: `$RUNTIME test $BE_DIR/tests/e2e/[slug].test.ts`
 Expected: PASS (all e2e tests pass now)
 Commit: `git commit -m "feat: [feature] e2e green"`
 
 ## Completion Criteria
-- [ ] `bun test work-agents/` exits 0
-- [ ] `bun run build` exits 0
+- [ ] `$BE_TEST_CMD` exits 0
+- [ ] `$RUNTIME run build` exits 0
 - [ ] All route contracts return correct status codes
 - [ ] [feature-specific check]
 ````
@@ -375,7 +377,7 @@ See parent #241 — Shared Contract section.
 
 ## Schema
 ```typescript
-// work-agents/src/db/schema.ts — append to // ─── Sales/CRM ────
+// $SCHEMA_FILE — append to // ─── Sales/CRM ────
 export const pipelineStages = pgTable("pipeline_stages", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
   orgId: text("org_id").notNull().references(() => organizations.id),
@@ -401,16 +403,16 @@ export async function getDeals(db: DB, orgId: string, stageId?: string): Promise
 ## TDD Tasks
 
 ### Task 0: E2E Tests (outer RED)
-**Progress check:** `test -f work-agents/tests/e2e/pipeline.test.ts`
+**Progress check:** `test -f $BE_DIR/tests/e2e/pipeline.test.ts`
 ...
 
 ### Task 1: Schema
-**Progress check:** `grep -q "pipelineStages" work-agents/src/db/schema.ts`
+**Progress check:** `grep -q "pipelineStages" $SCHEMA_FILE`
 ...
 
 ## Completion Criteria
-- [ ] `bun test work-agents/` exits 0
-- [ ] `bun run build` exits 0
+- [ ] `$BE_TEST_CMD` exits 0
+- [ ] `$RUNTIME run build` exits 0
 - [ ] GET /api/pipeline/stages returns stages ordered by `order` field
 ````
 
@@ -426,7 +428,7 @@ See parent #[STORY_NUMBER] — Shared Contract section.
 
 ## Mock Data
 ```typescript
-// work-web/src/mocks/[feature].mock.ts
+// $FE_DIR/src/mocks/[feature].mock.ts
 import type { Resource } from "@/lib/types";
 
 export const MOCK_RESOURCE: Resource = {
@@ -458,7 +460,7 @@ interface ComponentProps {
 
 ## API Client
 ```typescript
-// work-web/src/lib/api/[feature].ts
+// $API_CLIENT_DIR/[feature].ts
 export async function getResources(): Promise<Resource[]>
 export async function createResource(input: CreateInput): Promise<Resource>
 export async function updateResource(id: string, input: UpdateInput): Promise<Resource>
@@ -511,8 +513,8 @@ featureKey: {
 ## TDD Tasks
 
 ### Task 0: E2E Tests (outer RED)
-**Progress check:** `test -f work-web/tests/e2e/[slug].test.ts`
-**File:** Create `work-web/tests/e2e/[slug].test.ts`
+**Progress check:** `test -f $FE_DIR/tests/e2e/[slug].test.ts`
+**File:** Create `$FE_DIR/tests/e2e/[slug].test.ts`
 ```typescript
 import { describe, test, expect } from "bun:test";
 
@@ -529,12 +531,12 @@ describe("[Feature] FE E2E", () => {
   });
 });
 ```
-Run: `bun test work-web/tests/e2e/[slug].test.ts`
+Run: `$RUNTIME test $FE_DIR/tests/e2e/[slug].test.ts`
 Expected: FAIL
 Commit: `git commit -m "test: add FE e2e for [feature] (outer red)"`
 
 ### Task 1: Types & Mock Data
-**Progress check:** `grep -q "Resource" work-web/src/lib/types.ts`
+**Progress check:** `grep -q "Resource" $TYPES_FILE`
 Step 1: Write test
 ```typescript
 test("mock data matches type shape", () => {
@@ -548,7 +550,7 @@ Run / Expected: PASS
 Commit: `git commit -m "feat: add [feature] types and mocks"`
 
 ### Task 2: Component Shell (CP1)
-**Progress check:** `test -f work-web/src/app/(dashboard)/[feature]/page.tsx`
+**Progress check:** `test -f $FE_PAGES_DIR/[feature]/page.tsx`
 Step 1: Write test [code]
 Run / Expected: FAIL
 Step 2: Implement page component with mock data
@@ -571,7 +573,7 @@ Commit: `git commit -m "feat: add [feature] edge cases and i18n"`
 **PM Checkpoint CP3:** All states visible
 
 ### Task 5: API Client
-**Progress check:** `test -f work-web/src/lib/api/[feature].ts`
+**Progress check:** `test -f $API_CLIENT_DIR/[feature].ts`
 Step 1: Create API client with type-safe functions
 Step 2: Wire to mock data initially (swap to real API during integration)
 Commit: `git commit -m "feat: add [feature] API client"`
@@ -584,8 +586,8 @@ When BE is ready:
 - [ ] Smoke test with real data
 
 ## Completion Criteria
-- [ ] `bun test work-web/` exits 0
-- [ ] `bun run build` exits 0
+- [ ] `$FE_TEST_CMD` exits 0
+- [ ] `$RUNTIME run build` exits 0
 - [ ] zh-CN translations present for all user-facing strings
 - [ ] PM CP4 sign-off obtained
 ````
@@ -600,7 +602,7 @@ See parent #241 — Shared Contract section.
 
 ## Mock Data
 ```typescript
-// work-web/src/mocks/pipeline.mock.ts
+// $FE_DIR/src/mocks/pipeline.mock.ts
 import type { PipelineStage, Deal } from "@/lib/types";
 
 export const MOCK_STAGES: PipelineStage[] = [
@@ -632,7 +634,7 @@ interface PipelineBoardProps {
 
 ## API Client
 ```typescript
-// work-web/src/lib/api/pipeline.ts
+// $API_CLIENT_DIR/pipeline.ts
 export async function getStages(): Promise<PipelineStage[]>
 export async function getDeals(stageId?: string): Promise<Deal[]>
 ```
@@ -670,8 +672,8 @@ When BE is ready:
 - [ ] Smoke test with real pipeline data
 
 ## Completion Criteria
-- [ ] `bun test work-web/` exits 0
-- [ ] `bun run build` exits 0
+- [ ] `$FE_TEST_CMD` exits 0
+- [ ] `$RUNTIME run build` exits 0
 - [ ] zh-CN translations present
 - [ ] PM CP4 sign-off obtained
 ````
@@ -711,7 +713,7 @@ Use for non-user-facing technical work: DevOps, infrastructure, refactoring, tes
 ### Done Criteria
 - [ ] [Specific, verifiable outcome 1]
 - [ ] [Specific, verifiable outcome 2]
-- [ ] Tests pass: `bun test` in affected service(s)
+- [ ] Tests pass: `$RUNTIME test` in affected service(s)
 
 ### Technical Notes
 [Optional — approach, affected files, rollback plan if applicable]
@@ -727,8 +729,8 @@ Upgrade Bun from 1.1 to 1.2 across all services. The new version fixes a memory 
 deps
 
 ### Done Criteria
-- [ ] `bun --version` returns 1.2.x in work-agents, work-web, and work-www
-- [ ] All existing tests pass: `bun test` in each service
+- [ ] `$RUNTIME --version` returns 1.2.x in $BE_DIR, $FE_DIR, and all services
+- [ ] All existing tests pass: `$RUNTIME test` in each service
 - [ ] CI pipeline uses Bun 1.2
 - [ ] SSE streaming memory leak no longer reproduces under 100 concurrent connections
 
@@ -785,7 +787,7 @@ Use for confirmed bugs that need fixing.
 - [ ] [Any additional criteria]
 
 ### Environment
-- **Service:** [work-agents | work-web | work-www]
+- **Service:** [$BE_DIR | $FE_DIR | other]
 - **Branch/commit:** [Where the bug was observed]
 ```
 
@@ -814,7 +816,7 @@ Case count remains stale until manual page refresh.
 - [ ] No full page reload required
 
 ### Environment
-- **Service:** work-web
+- **Service:** $FE_DIR
 - **Branch/commit:** main @ c3266ba
 ```
 
@@ -849,10 +851,10 @@ Create the SSE streaming endpoint for individual case updates. When a client sub
 ### Vertical slice
 | Layer | File | Action |
 |-------|------|--------|
-| API | `work-agents/src/routes/case-stream.ts` | Create |
-| Service | `work-agents/src/services/case-stream.ts` | Create |
-| Types | `work-agents/src/types/stream.ts` | Modify |
-| Test | `work-agents/src/routes/case-stream.test.ts` | Create |
+| API | `$BE_ROUTES_DIR/case-stream.ts` | Create |
+| Service | `$BE_SERVICES_DIR/case-stream.ts` | Create |
+| Types | `$BE_DIR/src/types/stream.ts` | Modify |
+| Test | `$BE_ROUTES_DIR/case-stream.test.ts` | Create |
 
 ### Acceptance criteria
 - [ ] `GET /api/cases/:id/stream` returns `Content-Type: text/event-stream`

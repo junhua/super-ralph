@@ -1,7 +1,7 @@
 {
   "name": "super-ralph",
-  "version": "0.8.0",
-  "description": "Design-first autonomous development. 6-phase SADD: design (with TDD tasks + FE/BE sub-issues + Gherkin AC) → build → review → verify → release. Includes /review-design quality gate.",
+  "version": "0.9.0",
+  "description": "Project-agnostic design-first autonomous development. Reads .claude/super-ralph-config.md for repo, board, team, and codebase layout. 6-phase SADD pipeline with /review-design quality gate.",
   "author": {
     "name": "junhua",
     "email": "junhua.viva@gmail.com"

@@ -22,16 +22,46 @@ Execute these steps in order. **Do NOT ask the user for input at any point.** Al
 
 ---
 
+### Step 0: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+
+Extract these values for use in all subsequent steps:
+- `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
+- `$ORG` — GitHub org
+- `$PROJECT_NUM` — Project board number (or `none`)
+- `$PROJECT_ID` — Project board GraphQL ID
+- `$STATUS_FIELD_ID` — Status field ID
+- `$STATUS_TODO` / `$STATUS_IN_PROGRESS` / `$STATUS_PENDING_REVIEW` / `$STATUS_SHIPPED`
+- `$BE_DIR` — Backend directory
+- `$SCHEMA_FILE` — Schema file path
+- `$ROUTE_REG_FILE` — Route registration file
+- `$BE_SERVICES_DIR` — Services directory
+- `$BE_ROUTES_DIR` — Routes directory
+- `$BE_TEST_CMD` — Backend test command
+- `$FE_DIR` — Frontend directory
+- `$TYPES_FILE` — Types file path
+- `$API_CLIENT_DIR` — API client directory
+- `$I18N_BASE_FILE` — Primary i18n file
+- `$I18N_SECONDARY_FILE` — Secondary i18n file (may be blank)
+- `$FE_PAGES_DIR` — Pages directory
+- `$FE_COMPONENTS_DIR` — Components directory
+- `$FE_TEST_CMD` — Frontend test command
+- `$APP_URL` — Production app URL
+- `$RUNTIME` — Runtime (bun/node)
+
+---
+
 ### Step 1: Resolve EPIC
 
 Fetch the EPIC issue and locate the epic document.
 
 ```bash
 # Fetch EPIC issue
-gh issue view $EPIC_NUMBER --repo Forth-AI/work-ssot --json number,title,body,labels,milestone,state
+gh issue view $EPIC_NUMBER --repo $REPO --json number,title,body,labels,milestone,state
 
 # Extract epic doc path from issue body
-EPIC_DOC=$(gh issue view $EPIC_NUMBER --repo Forth-AI/work-ssot --json body --jq '.body' \
+EPIC_DOC=$(gh issue view $EPIC_NUMBER --repo $REPO --json body --jq '.body' \
   | grep -oE 'docs/epics/[a-zA-Z0-9._-]+\.md' | head -1)
 ```
 
@@ -49,7 +79,7 @@ Fetch all sub-issues (STORYs + FE/BE subs) linked to this EPIC.
 
 ```bash
 # List all issues that reference this EPIC as parent
-gh issue list --repo Forth-AI/work-ssot --state all --json number,title,body,labels \
+gh issue list --repo $REPO --state all --json number,title,body,labels \
   --jq "[.[] | select(.body | test(\"Parent:?\\s*#$EPIC_NUMBER\"; \"i\"))]"
 ```
 
@@ -57,7 +87,7 @@ For each [STORY] issue found, also fetch its [BE] and [FE] sub-issues:
 
 ```bash
 # For each STORY_NUMBER
-gh issue list --repo Forth-AI/work-ssot --state all --json number,title,body,labels \
+gh issue list --repo $REPO --state all --json number,title,body,labels \
   --jq "[.[] | select(.body | test(\"Parent:?\\s*#$STORY_NUMBER\"; \"i\"))]"
 ```
 
@@ -120,9 +150,9 @@ Task tool:
     |----|-------|---------------|
     | BE-1 | Task 0 is e2e | First TDD task creates e2e test from AC (outer RED) |
     | BE-2 | No pseudocode | No "implement X here", no "...", no "TODO" — all code blocks are exact and complete |
-    | BE-3 | Exact file paths | Every file reference uses repo-relative paths (e.g., `work-agents/src/services/foo.ts`) |
+    | BE-3 | Exact file paths | Every file reference uses repo-relative paths (e.g., `$BE_SERVICES_DIR/foo.ts`) |
     | BE-4 | Expected output | Every `Run:` or `bun test` command has an expected output (PASS/FAIL, counts) |
-    | BE-5 | Shared file protocol | Modifications to shared files (schema.ts, index.ts, test-helpers.ts) use append-only with section markers |
+    | BE-5 | Shared file protocol | Modifications to shared files ($SCHEMA_FILE, $ROUTE_REG_FILE, test-helpers.ts) use append-only with section markers |
     | BE-6 | Commit messages | Every TDD task ends with an exact `git commit -m "..."` command |
     | BE-7 | Completion criteria | Issue has a machine-verifiable completion criteria section with runnable commands |
 
@@ -132,12 +162,12 @@ Task tool:
     |----|-------|---------------|
     | FE-1 | Task 0 is e2e | First TDD task creates/extends e2e test (outer RED) |
     | FE-2 | No pseudocode | No "implement X here", no "...", no "TODO" — all code blocks are exact and complete |
-    | FE-3 | Exact file paths | Every file reference uses repo-relative paths (e.g., `work-web/src/app/foo/page.tsx`) |
+    | FE-3 | Exact file paths | Every file reference uses repo-relative paths (e.g., `$FE_PAGES_DIR/foo/page.tsx`) |
     | FE-4 | Expected output | Every `Run:` or `bun test` command has an expected output (PASS/FAIL, counts) |
-    | FE-5 | Shared file protocol | Modifications to shared files (types.ts, i18n) use append-only with section markers |
+    | FE-5 | Shared file protocol | Modifications to shared files ($TYPES_FILE, i18n) use append-only with section markers |
     | FE-6 | Commit messages | Every TDD task ends with an exact `git commit -m "..."` command |
     | FE-7 | Completion criteria | Issue has a machine-verifiable completion criteria section |
-    | FE-8 | i18n coverage | Both `en.ts` and `zh-CN.ts` entries are present with complete translations |
+    | FE-8 | i18n coverage | Both `$I18N_BASE_FILE` and `$I18N_SECONDARY_FILE` entries are present with complete translations |
     | FE-9 | Mock data | Mock data file exists for concurrent development without BE dependency |
     | FE-10 | PM checkpoints | CP1-CP4 checkpoints are defined with clear verification criteria |
 
@@ -201,12 +231,12 @@ Check if 2+ BE sub-issues modify the same section of a shared file:
 
 ```
 Shared files to check:
-- work-agents/src/db/schema.ts — section markers
-- work-agents/src/index.ts — route registration
-- work-agents/src/db/test-helpers.ts — table registration
-- work-web/src/lib/types.ts — type sections
-- work-web/src/i18n/en.ts — feature keys
-- work-web/src/i18n/zh-CN.ts — feature keys
+- $SCHEMA_FILE — section markers
+- $ROUTE_REG_FILE — route registration
+- $BE_DIR/src/db/test-helpers.ts — table registration
+- $TYPES_FILE — type sections
+- $I18N_BASE_FILE — feature keys
+- $I18N_SECONDARY_FILE — feature keys
 ```
 
 For each shared file, scan all BE/FE sub-issue bodies. If 2+ issues modify the same section marker:
@@ -265,7 +295,7 @@ Aggregate all findings from per-story reviews (Step 3) and cross-issue checks (S
 If `--fix` is passed, apply conservative fixes only:
 
 **Safe to auto-fix:**
-- Missing i18n rows — add the `[feature]` key to `zh-CN.ts` mirroring the `en.ts` structure
+- Missing i18n rows — add the `[feature]` key to `$I18N_SECONDARY_FILE` mirroring the `$I18N_BASE_FILE` structure
 - Placeholder comments in code blocks — replace `// ...` with actual implementation code
 - Missing section markers — add `// ─── [Feature] ────` to shared file instructions
 - Missing commit messages — add `git commit -m "..."` to TDD tasks
@@ -281,7 +311,7 @@ If `--fix` is passed, apply conservative fixes only:
 **Process:**
 1. For each auto-fixable finding, edit the GitHub issue body:
    ```bash
-   gh issue edit <number> --body "<fixed body>" --repo Forth-AI/work-ssot
+   gh issue edit <number> --body "<fixed body>" --repo $REPO
    ```
 2. If the fix involves the epic doc, edit the file and commit:
    ```bash

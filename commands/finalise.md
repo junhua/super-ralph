@@ -23,6 +23,23 @@ Parse the user's input for:
 
 Execute these steps in order. **Do NOT ask the user for input at any point.**
 
+### Step 0: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+
+Extract these values for use in all subsequent steps:
+- `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
+- `$ORG` — GitHub org (e.g., `Forth-AI`)
+- `$PROJECT_NUM` — Project board number
+- `$PROJECT_ID` — Project board GraphQL ID
+- `$STATUS_FIELD_ID` — Status field ID
+- `$STATUS_SHIPPED` — Shipped status option ID
+- `$APP_URL` — Production app URL (e.g., `https://app.forthai.work`)
+- `$BE_DIR` — Backend directory (e.g., `work-agents`)
+- `$FE_DIR` — Frontend directory (e.g., `work-web`)
+- `$PM_USER` — Product manager name
+- `$TESTERS` — Tester names (e.g., `Amy & Faye`)
+
 ### Step 1: Identify Context
 
 Determine the PR, branch, plan, and story to work with:
@@ -94,7 +111,7 @@ Merge the PR using squash merge (consolidates all commits into clean history):
    echo "Waiting for Vercel deployment on $BASE_BRANCH..."
    DEPLOY_OK=false
    for i in $(seq 1 36); do
-     STATUS_URL=$(gh api repos/Forth-AI/work-ssot/deployments \
+     STATUS_URL=$(gh api repos/$REPO/deployments \
        --jq "[.[] | select(.ref==\"$BASE_BRANCH\")] | first | .statuses_url" 2>/dev/null)
      if [ -n "$STATUS_URL" ]; then
        STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
@@ -115,7 +132,7 @@ Merge the PR using squash merge (consolidates all commits into clean history):
    - Report: `"WARNING: Vercel deployment on $BASE_BRANCH did not succeed (state: $STATE). Investigate build logs before considering this task done."`
    - Check for Vercel bot comments with error details:
      ```bash
-     gh api repos/Forth-AI/work-ssot/issues/$PR_NUMBER/comments \
+     gh api repos/$REPO/issues/$PR_NUMBER/comments \
        --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null | head -20
      ```
    - Do NOT proceed to "task done" status — the deployment must be healthy.
@@ -123,10 +140,10 @@ Merge the PR using squash merge (consolidates all commits into clean history):
 3. **Verify HTTP health** of the deployed URL:
    ```bash
    if [ "$BASE_BRANCH" = "main" ]; then
-     DEPLOY_URL="https://app.forthai.work"
+     DEPLOY_URL="$APP_URL"
    else
      # Extract staging preview URL from Vercel bot comment
-     DEPLOY_URL=$(gh api repos/Forth-AI/work-ssot/issues/$PR_NUMBER/comments \
+     DEPLOY_URL=$(gh api repos/$REPO/issues/$PR_NUMBER/comments \
        --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null \
        | grep -oE 'https://[a-zA-Z0-9._-]+\.vercel\.app' | head -1)
    fi
@@ -163,7 +180,7 @@ After PR merge, close any GitHub Issues linked to this work. Use multiple discov
    **Source C — GitHub issue title matching** (match branch slug to issue title):
    ```bash
    SLUG=$(echo "$BRANCH" | sed 's|super-ralph/||; s|/|-|g; s|-| |g')
-   TITLE_ISSUES=$(gh issue list --repo Forth-AI/work-ssot --state open --limit 200 --json number,title --jq ".[] | select(.title | ascii_downcase | contains(\"$(echo "$SLUG" | tr '[:upper:]' '[:lower:]')\")) | .number")
+   TITLE_ISSUES=$(gh issue list --repo $REPO --state open --limit 200 --json number,title --jq ".[] | select(.title | ascii_downcase | contains(\"$(echo "$SLUG" | tr '[:upper:]' '[:lower:]')\")) | .number")
    ```
 
    **Merge all sources:**
@@ -174,23 +191,23 @@ After PR merge, close any GitHub Issues linked to this work. Use multiple discov
 2. **Close discovered issues (if not auto-closed):**
    ```bash
    for ISSUE in $ISSUES; do
-     STATE=$(gh issue view $ISSUE --repo Forth-AI/work-ssot --json state --jq '.state')
+     STATE=$(gh issue view $ISSUE --repo $REPO --json state --jq '.state')
      if [ "$STATE" = "OPEN" ]; then
-       gh issue close $ISSUE --repo Forth-AI/work-ssot --comment "Shipped in PR #$PR_NUMBER" --reason completed
+       gh issue close $ISSUE --repo $REPO --comment "Shipped in PR #$PR_NUMBER" --reason completed
      fi
    done
    ```
 
-3. **Move issues to "Shipped" on Project #9 board:**
+3. **Move issues to "Shipped" on Project #$PROJECT_NUM board:**
    ```bash
    for ISSUE in $ISSUES; do
-     ITEM_ID=$(gh project item-list 9 --owner Forth-AI --format json | \
+     ITEM_ID=$(gh project item-list $PROJECT_NUM --owner $ORG --format json | \
        python3 -c "import json,sys; [print(i['id']) for i in json.load(sys.stdin)['items'] if i.get('content',{}).get('number')==$ISSUE]" 2>/dev/null)
      if [ -n "$ITEM_ID" ]; then
-       gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+       gh project item-edit --project-id $PROJECT_ID \
          --id "$ITEM_ID" \
-         --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-         --single-select-option-id 98236657
+         --field-id $STATUS_FIELD_ID \
+         --single-select-option-id $STATUS_SHIPPED
      fi
    done
    ```
@@ -199,11 +216,11 @@ After PR merge, close any GitHub Issues linked to this work. Use multiple discov
    If all sub-issues of an [EPIC] are now closed, close the parent too:
    ```bash
    for ISSUE in $ISSUES; do
-     PARENT=$(gh issue view $ISSUE --repo Forth-AI/work-ssot --json body --jq '.body' | grep -oE 'Parent:[[:space:]]*#[0-9]+' | grep -oE '[0-9]+')
+     PARENT=$(gh issue view $ISSUE --repo $REPO --json body --jq '.body' | grep -oE 'Parent:[[:space:]]*#[0-9]+' | grep -oE '[0-9]+')
      if [ -n "$PARENT" ]; then
-       OPEN_SUBS=$(gh issue list --repo Forth-AI/work-ssot --json body,state --jq "[.[] | select(.body | contains(\"Parent: #$PARENT\")) | select(.state==\"OPEN\")] | length")
+       OPEN_SUBS=$(gh issue list --repo $REPO --json body,state --jq "[.[] | select(.body | contains(\"Parent: #$PARENT\")) | select(.state==\"OPEN\")] | length")
        if [ "$OPEN_SUBS" = "0" ]; then
-         gh issue close $PARENT --repo Forth-AI/work-ssot --comment "All sub-issues shipped. Epic complete." --reason completed
+         gh issue close $PARENT --repo $REPO --comment "All sub-issues shipped. Epic complete." --reason completed
        fi
      fi
    done
@@ -213,11 +230,11 @@ After PR merge, close any GitHub Issues linked to this work. Use multiple discov
    If an EPIC was just closed, check if its Milestone has 0 remaining open issues:
    ```bash
    for ISSUE in $ISSUES; do
-     MILESTONE=$(gh issue view $ISSUE --repo Forth-AI/work-ssot --json milestone --jq '.milestone.title // empty')
+     MILESTONE=$(gh issue view $ISSUE --repo $REPO --json milestone --jq '.milestone.title // empty')
      if [ -n "$MILESTONE" ]; then
-       OPEN_COUNT=$(gh api repos/Forth-AI/work-ssot/milestones --jq ".[] | select(.title==\"$MILESTONE\") | .open_issues")
+       OPEN_COUNT=$(gh api repos/$REPO/milestones --jq ".[] | select(.title==\"$MILESTONE\") | .open_issues")
        if [ "$OPEN_COUNT" = "0" ]; then
-         echo "Milestone '$MILESTONE' has 0 open issues — ready for UAT by Amy & Faye."
+         echo "Milestone '$MILESTONE' has 0 open issues — ready for UAT by $TESTERS."
          echo "   After UAT sign-off: git tag -a ${MILESTONE}.0 -m '${MILESTONE}: <description>'"
        fi
      fi

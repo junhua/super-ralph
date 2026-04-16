@@ -1,5 +1,7 @@
 # Story Template
 
+> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md`.
+
 Use this template for individual user stories within an epic. Each story is independently buildable via `/super-ralph:build-story #N` -- no separate plan step required.
 
 ---
@@ -114,7 +116,7 @@ Every story with Size >= M must include these sections. The design agent fills t
 ### Schema
 
 ```typescript
-// work-agents/src/db/schema.ts -- append to // --- [Feature] ----
+// $SCHEMA_FILE -- append to // --- [Feature] ----
 export const resources = pgTable("resources", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
   orgId: text("org_id").notNull().references(() => organizations.id),
@@ -128,7 +130,7 @@ export const resources = pgTable("resources", {
 ### Service Interface
 
 ```typescript
-// work-agents/src/services/resources.ts
+// $BE_SERVICES_DIR/resources.ts
 export async function listResources(db: DB, orgId: string): Promise<Resource[]>
 export async function getResource(db: DB, orgId: string, id: string): Promise<Resource | null>
 export async function createResource(db: DB, orgId: string, input: CreateResourceInput): Promise<Resource>
@@ -161,7 +163,7 @@ interface ResourceListProps {
 ### i18n Keys
 
 ```typescript
-// work-web/src/i18n/en.ts
+// $I18N_BASE_FILE
 resources: {
   title: "Resources",                    // zh-CN: "..."
   create: "Create Resource",             // zh-CN: "..."
@@ -175,11 +177,11 @@ resources: {
 ### Patterns to Follow
 
 ```
-Service pattern: work-agents/src/services/knowledge.ts
-Route pattern:   work-agents/src/routes/knowledge.ts
-Page pattern:    work-web/src/app/(app)/[orgId]/knowledge/page.tsx
-API client:      work-web/src/lib/api/knowledge.ts
-i18n pattern:    work-web/src/i18n/en.ts (knowledge section)
+Service pattern: $BE_SERVICES_DIR/knowledge.ts
+Route pattern:   $BE_ROUTES_DIR/knowledge.ts
+Page pattern:    $FE_PAGES_DIR/knowledge/page.tsx
+API client:      $API_CLIENT_DIR/knowledge.ts
+i18n pattern:    $I18N_BASE_FILE (knowledge section)
 ```
 
 ## FE Sub-Issue Scope
@@ -207,21 +209,21 @@ The [FE] sub-issue covers everything the frontend developer needs to build.
 
 ```markdown
 ### Task 1: API client + types
-**Progress check:** `test -f work-web/src/lib/api/resources.ts`
-**Files:** Create `work-web/src/lib/api/resources.ts`, Test `work-web/src/lib/api/resources.test.ts`
+**Progress check:** `test -f $API_CLIENT_DIR/resources.ts`
+**Files:** Create `$API_CLIENT_DIR/resources.ts`, Test `$API_CLIENT_DIR/resources.test.ts`
 1. Write test: fetch mock returns typed response
 2. Implement: API client with typed fetch wrappers
 3. Commit: "feat(web): add resources API client"
 
 ### Task 2: Resource list component
-**Progress check:** `test -f work-web/src/components/resources/resource-list.tsx`
+**Progress check:** `test -f $FE_COMPONENTS_DIR/resources/resource-list.tsx`
 **Files:** Create component + test
 1. Write test: renders mock resources in table
 2. Implement: ResourceList component with loading/error/data states
 3. Commit: "feat(web): add ResourceList component"
 
 ### Task 3: Page integration
-**Progress check:** `test -f work-web/src/app/(app)/[orgId]/resources/page.tsx`
+**Progress check:** `test -f $FE_PAGES_DIR/resources/page.tsx`
 **Files:** Create page + route
 1. Write test: page renders ResourceList with real data hook
 2. Implement: Page with useQuery, loading skeleton, error boundary
@@ -237,29 +239,29 @@ The [BE] sub-issue covers everything the backend developer needs to build.
 - Schema migration (Drizzle table definition)
 - Service layer (business logic functions)
 - Route handlers (Hono routes with Zod validation)
-- Route registration (append to `work-agents/src/index.ts`)
+- Route registration (append to `$ROUTE_REG_FILE`)
 - Tests (service + route integration tests)
 
 ### TDD Tasks (Example)
 
 ```markdown
 ### Task 1: Schema migration
-**Progress check:** `grep -q "resources" work-agents/src/db/schema.ts`
-**Files:** Modify `work-agents/src/db/schema.ts`
+**Progress check:** `grep -q "resources" $SCHEMA_FILE`
+**Files:** Modify `$SCHEMA_FILE`
 1. Write test: import table, assert columns exist
 2. Implement: Add pgTable definition to schema.ts
 3. Commit: "feat(agents): add resources schema"
 
 ### Task 2: Service layer
-**Progress check:** `test -f work-agents/src/services/resources.ts`
-**Files:** Create `work-agents/src/services/resources.ts` + test
+**Progress check:** `test -f $BE_SERVICES_DIR/resources.ts`
+**Files:** Create `$BE_SERVICES_DIR/resources.ts` + test
 1. Write test: createResource returns typed result
 2. Implement: CRUD service functions with error handling
 3. Commit: "feat(agents): add resources service"
 
 ### Task 3: Route handlers + registration
-**Progress check:** `test -f work-agents/src/routes/resources.ts`
-**Files:** Create route file, modify `work-agents/src/index.ts`
+**Progress check:** `test -f $BE_ROUTES_DIR/resources.ts`
+**Files:** Create route file, modify `$ROUTE_REG_FILE`
 1. Write test: POST /api/orgs/:orgId/resources returns 201
 2. Implement: Hono routes with zValidator, register in index.ts
 3. Commit: "feat(agents): add resources routes"

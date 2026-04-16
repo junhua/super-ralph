@@ -23,6 +23,36 @@ Execute these phases in order. **Do NOT ask the user for input at any point.** M
 
 ---
 
+### Step 0: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+
+Extract these values for use in all subsequent steps:
+- `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
+- `$ORG` — GitHub org
+- `$PROJECT_NUM` — Project board number (or `none`)
+- `$PROJECT_ID` — Project board GraphQL ID
+- `$STATUS_FIELD_ID` — Status field ID
+- `$STATUS_TODO` / `$STATUS_IN_PROGRESS` / `$STATUS_PENDING_REVIEW` / `$STATUS_SHIPPED`
+- `$BE_DIR` — Backend directory
+- `$SCHEMA_FILE` — Schema file path
+- `$ROUTE_REG_FILE` — Route registration file
+- `$BE_SERVICES_DIR` — Services directory
+- `$BE_ROUTES_DIR` — Routes directory
+- `$BE_TEST_CMD` — Backend test command
+- `$FE_DIR` — Frontend directory
+- `$TYPES_FILE` — Types file path
+- `$API_CLIENT_DIR` — API client directory
+- `$I18N_BASE_FILE` — Primary i18n file
+- `$I18N_SECONDARY_FILE` — Secondary i18n file (may be blank)
+- `$FE_PAGES_DIR` — Pages directory
+- `$FE_COMPONENTS_DIR` — Components directory
+- `$FE_TEST_CMD` — Frontend test command
+- `$APP_URL` — Production app URL
+- `$RUNTIME` — Runtime (bun/node)
+
+---
+
 ### Phase 1: Context (sequential, orchestrator)
 
 Gather all project and codebase context needed to inform the design.
@@ -45,12 +75,12 @@ Read product documentation to understand vision, architecture, and current state
 
 Use Glob and Grep to understand the current implementation landscape:
 
-1. **Schema:** Read `work-agents/src/db/schema.ts` — existing tables, enums, section markers (`// ─── [Feature] ────`)
-2. **Routes:** Read `work-agents/src/index.ts` — registered route blocks in the protected routes section
-3. **Services:** Glob `work-agents/src/services/*.ts` — existing service patterns, method signatures
-4. **Pages:** Glob `work-web/src/app/**/{page,layout}.tsx` — existing page directories and structure
-5. **i18n:** Read `work-web/src/i18n/en.ts` — existing feature keys and namespace structure
-6. **Types:** Read `work-web/src/lib/types.ts` — existing type sections and section markers
+1. **Schema:** Read `$SCHEMA_FILE` — existing tables, enums, section markers (`// ─── [Feature] ────`)
+2. **Routes:** Read `$ROUTE_REG_FILE` — registered route blocks in the protected routes section
+3. **Services:** Glob `$BE_SERVICES_DIR/*.ts` — existing service patterns, method signatures
+4. **Pages:** Glob `$FE_PAGES_DIR/**/{page,layout}.tsx` — existing page directories and structure
+5. **i18n:** Read `$I18N_BASE_FILE` — existing feature keys and namespace structure
+6. **Types:** Read `$TYPES_FILE` — existing type sections and section markers
 7. **Existing epics:** Glob `docs/epics/*.md` — prior epic patterns
 8. **Existing plans:** Glob `docs/plans/*.md` — prior plan patterns
 
@@ -220,17 +250,17 @@ Task tool:
     - Runtime: Bun (not Node.js)
     - Language: TypeScript
     - Package manager: bun install, bun run
-    - Monorepo: work-agents/ (Hono backend), work-web/ (Next.js frontend)
+    - Monorepo: $BE_DIR/ (backend), $FE_DIR/ (frontend)
     - DB: Drizzle ORM, PostgreSQL
     - Tests: bun:test with describe/test/expect
-    - i18n: en.ts + zh-CN.ts with feature namespace keys
+    - i18n: $I18N_BASE_FILE + $I18N_SECONDARY_FILE with feature namespace keys
 
     ## Shared File Protocol
-    - work-agents/src/db/schema.ts — append tables in section: // ─── [Feature] ────
-    - work-agents/src/index.ts — append route registration at END of protected routes
-    - work-web/src/lib/types.ts — append types in section: // ── [Feature] Types ────
-    - work-web/src/i18n/en.ts + zh-CN.ts — add top-level key per feature
-    - work-agents/src/db/test-helpers.ts — append imports and tables.set() at end
+    - $SCHEMA_FILE — append tables in section: // ─── [Feature] ────
+    - $ROUTE_REG_FILE — append route registration at END of protected routes
+    - $TYPES_FILE — append types in section: // ── [Feature] Types ────
+    - $I18N_BASE_FILE + $I18N_SECONDARY_FILE — add top-level key per feature
+    - $BE_DIR/src/db/test-helpers.ts — append imports and tables.set() at end
     - RULE: Always APPEND to END of section. Never insert in middle.
 
     ## Relevant Existing Files
@@ -280,7 +310,7 @@ Task tool:
 
     ```typescript
     // Types shared between FE and BE for this story
-    // These go in work-web/src/lib/types.ts AND inform BE route types
+    // These go in $TYPES_FILE AND inform BE route types
 
     export interface [EntityName] {
       id: string;
@@ -324,7 +354,7 @@ Task tool:
     ## Backend Implementation
 
     ### Schema Changes
-    File: `work-agents/src/db/schema.ts`
+    File: `$SCHEMA_FILE`
     Section: `// ─── [Feature] ────`
 
     ```typescript
@@ -336,7 +366,7 @@ Task tool:
     ```
 
     ### Service
-    File: `work-agents/src/services/[feature].ts` (Create)
+    File: `$BE_SERVICES_DIR/[feature].ts` (Create)
 
     ```typescript
     // EXACT service code — no placeholders, no "implement X here"
@@ -355,7 +385,7 @@ Task tool:
     ```
 
     ### Route
-    File: `work-agents/src/routes/[feature].ts` (Create)
+    File: `$BE_ROUTES_DIR/[feature].ts` (Create)
 
     ```typescript
     // EXACT route code
@@ -371,7 +401,7 @@ Task tool:
     ```
 
     ### Route Registration
-    File: `work-agents/src/index.ts`
+    File: `$ROUTE_REG_FILE`
     Action: APPEND to end of protected routes section
 
     ```typescript
@@ -379,7 +409,7 @@ Task tool:
     ```
 
     ### Test Helpers
-    File: `work-agents/src/db/test-helpers.ts`
+    File: `$BE_DIR/src/db/test-helpers.ts`
     Action: APPEND at end
 
     ```typescript
@@ -406,11 +436,11 @@ Task tool:
 
     #### Task 1: Schema + Migration
     ```bash
-    # Add schema to work-agents/src/db/schema.ts
+    # Add schema to $SCHEMA_FILE
     # [EXACT code to append — shown above in Schema Changes]
 
     # Write unit test
-    cat > work-agents/src/services/__tests__/[feature].test.ts << 'TESTEOF'
+    cat > $BE_SERVICES_DIR/__tests__/[feature].test.ts << 'TESTEOF'
     import { describe, test, expect } from "bun:test";
     import { db } from "../../db";
     import { [table] } from "../../db/schema";
@@ -423,15 +453,15 @@ Task tool:
     TESTEOF
 
     # Run — expected: FAIL (schema not added yet)
-    cd work-agents && bun test src/services/__tests__/[feature].test.ts
+    cd $BE_DIR && $BE_TEST_CMD src/services/__tests__/[feature].test.ts
     # Expected: FAIL
 
     # Implement — add schema code
     # Run — expected: PASS
-    cd work-agents && bun test src/services/__tests__/[feature].test.ts
+    cd $BE_DIR && $BE_TEST_CMD src/services/__tests__/[feature].test.ts
     # Expected: PASS — 1 passed
 
-    git add work-agents/src/db/schema.ts work-agents/src/services/__tests__/[feature].test.ts
+    git add $SCHEMA_FILE $BE_SERVICES_DIR/__tests__/[feature].test.ts
     git commit -m "feat([feature]): add schema and migration"
     ```
 
@@ -445,7 +475,7 @@ Task tool:
     [Same TDD structure]
 
     ### Completion Criteria
-    - [ ] `cd work-agents && bun test` — 0 failures
+    - [ ] `cd $BE_DIR && $BE_TEST_CMD` — 0 failures
     - [ ] `bun test tests/e2e/[story-slug].test.ts` — BE scenarios pass
     ```
 
@@ -459,7 +489,7 @@ Task tool:
     ## Frontend Implementation
 
     ### Mock Data (for concurrent dev without BE)
-    File: `work-web/src/lib/mock/[feature].ts` (Create)
+    File: `$FE_DIR/src/lib/mock/[feature].ts` (Create)
 
     ```typescript
     // Mock data matching the Shared Contract types
@@ -486,7 +516,7 @@ Task tool:
     ```
 
     ### API Client
-    File: `work-web/src/lib/api/[feature].ts` (Create)
+    File: `$API_CLIENT_DIR/[feature].ts` (Create)
 
     ```typescript
     // EXACT API client code
@@ -507,7 +537,7 @@ Task tool:
     ```
 
     ### Types
-    File: `work-web/src/lib/types.ts`
+    File: `$TYPES_FILE`
     Section: `// ── [Feature] Types ────`
     Action: APPEND at end of section
 
@@ -519,7 +549,7 @@ Task tool:
     ```
 
     ### i18n
-    File: `work-web/src/i18n/en.ts` — add top-level key:
+    File: `$I18N_BASE_FILE` — add top-level key:
     ```typescript
     [feature]: {
       title: "[Feature Title]",
@@ -533,7 +563,7 @@ Task tool:
     },
     ```
 
-    File: `work-web/src/i18n/zh-CN.ts` — add matching key:
+    File: `$I18N_SECONDARY_FILE` — add matching key:
     ```typescript
     [feature]: {
       title: "[Chinese title]",
@@ -547,7 +577,7 @@ Task tool:
     ```
 
     ### Components
-    File: `work-web/src/app/[path]/page.tsx` (Create)
+    File: `$FE_PAGES_DIR/[path]/page.tsx` (Create)
 
     ```typescript
     // EXACT page component code
@@ -555,7 +585,7 @@ Task tool:
     // ... imports, hooks, JSX — complete implementation
     ```
 
-    File: `work-web/src/components/[feature]/[Component].tsx` (Create, if needed)
+    File: `$FE_COMPONENTS_DIR/[feature]/[Component].tsx` (Create, if needed)
     ```typescript
     // EXACT component code
     ```
@@ -604,10 +634,10 @@ Task tool:
     | CP4: AC pass | After all tasks | All Gherkin scenarios pass as e2e tests |
 
     ### Completion Criteria
-    - [ ] `cd work-web && bun test` — 0 failures
+    - [ ] `cd $FE_DIR && $FE_TEST_CMD` — 0 failures
     - [ ] `bun test tests/e2e/[story-slug].test.ts` — FE scenarios pass
-    - [ ] i18n: both en.ts and zh-CN.ts have [feature] key
-    - [ ] Mock data: `work-web/src/lib/mock/[feature].ts` exists
+    - [ ] i18n: both $I18N_BASE_FILE and $I18N_SECONDARY_FILE have [feature] key
+    - [ ] Mock data: `$FE_DIR/src/lib/mock/[feature].ts` exists
     ```
 
     ## File Output
@@ -679,7 +709,7 @@ Calculate total effort and optimal execution order:
 
 1. **Find the active milestone:**
    ```bash
-   gh api repos/Forth-AI/work-ssot/milestones --jq '.[] | select(.state=="open") | "\(.number) \(.title)"'
+   gh api repos/$REPO/milestones --jq '.[] | select(.state=="open") | "\(.number) \(.title)"'
    ```
    If no milestone exists or the epic doesn't fit an existing one, note this in the report and skip milestone attachment (only Jeph creates milestones).
 
@@ -744,12 +774,12 @@ Calculate total effort and optimal execution order:
    ## Epic Document
    docs/epics/YYYY-MM-DD-<slug>.md
    EOF
-   )" --repo Forth-AI/work-ssot
+   )" --repo $REPO
    ```
 
-3. **Add to Project #9 and set fields:**
+3. **Add to Project #$PROJECT_NUM and set fields:**
    ```bash
-   gh project item-add 9 --owner Forth-AI --url <epic-issue-url>
+   gh project item-add $PROJECT_NUM --owner $ORG --url <epic-issue-url>
    # Set Type=epic, Size, Priority via project field IDs
    ```
 
@@ -766,10 +796,10 @@ gh issue create --title "[STORY] <Story title>" \
 
 [STORY ISSUE BODY FROM STEP 9, OUTPUT 1]
 EOF
-)" --repo Forth-AI/work-ssot
+)" --repo $REPO
 ```
 
-Add to Project #9, set Type=story, Size, Priority.
+Add to Project #$PROJECT_NUM, set Type=story, Size, Priority.
 
 **b. [BE] sub-issue:**
 ```bash
@@ -780,10 +810,10 @@ gh issue create --title "[BE] <Story title> — Backend" \
 
 [BE SUB-ISSUE BODY FROM STEP 9, OUTPUT 2]
 EOF
-)" --repo Forth-AI/work-ssot
+)" --repo $REPO
 ```
 
-Add to Project #9, set Type=chore, Size, Priority.
+Add to Project #$PROJECT_NUM, set Type=chore, Size, Priority.
 
 **c. [FE] sub-issue:**
 ```bash
@@ -794,17 +824,17 @@ gh issue create --title "[FE] <Story title> — Frontend" \
 
 [FE SUB-ISSUE BODY FROM STEP 9, OUTPUT 3]
 EOF
-)" --repo Forth-AI/work-ssot
+)" --repo $REPO
 ```
 
-Add to Project #9, set Type=chore, Size, Priority.
+Add to Project #$PROJECT_NUM, set Type=chore, Size, Priority.
 
 #### Step 14: Update EPIC Body with Linked Issue Numbers
 
 After all issues are created, update the EPIC body to replace `#??` placeholders with actual issue numbers:
 
 ```bash
-gh issue edit <epic-number> --body "<updated body with real #N references>" --repo Forth-AI/work-ssot
+gh issue edit <epic-number> --body "<updated body with real #N references>" --repo $REPO
 ```
 
 ---
@@ -893,7 +923,7 @@ Wave 2 (after Wave 1):
 - **Decisions pre-made.** Every design choice (component library, state management, API shape) is decided and documented. No choices left for the build agent.
 - **Shared file protocol enforced.** Every BE/FE sub-issue specifies exact file, section marker, and append location.
 - **Commit messages present.** Every TDD task ends with an exact `git commit -m "..."` command.
-- **i18n coverage required.** Both `en.ts` and `zh-CN.ts` entries in every FE sub-issue. No English-only features.
+- **i18n coverage required.** Both `$I18N_BASE_FILE` and `$I18N_SECONDARY_FILE` entries in every FE sub-issue. No English-only features.
 - **Use product vision personas.** Never write "As a user" — always use specific personas from the vision doc.
 - **Respect non-goals.** If the vision doc says something is out of scope, the epic must not include it.
 - **Concrete over vague.** "Shows 3 templates" not "shows templates." "Within 2 seconds" not "quickly."

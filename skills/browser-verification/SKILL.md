@@ -25,7 +25,7 @@ Verify web app features in a real browser using claude-in-chrome MCP tools. Maps
 ### Get Vercel Preview URL
 
 ```bash
-gh api repos/Forth-AI/work-ssot/issues/$PR_NUMBER/comments \
+gh api repos/$REPO/issues/$PR_NUMBER/comments \
   --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' \
   | grep -oE 'https://[a-zA-Z0-9._-]+\.vercel\.app'
 ```

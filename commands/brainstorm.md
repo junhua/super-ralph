@@ -22,6 +22,36 @@ Parse the user's input for:
 
 Execute these steps in order. **Do NOT ask the user for input at any point.** Make all decisions autonomously using the research + SME pattern.
 
+### Step 0: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+
+Extract these values for use in all subsequent steps:
+- `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
+- `$ORG` — GitHub org
+- `$PROJECT_NUM` — Project board number (or `none`)
+- `$PROJECT_ID` — Project board GraphQL ID
+- `$STATUS_FIELD_ID` — Status field ID
+- `$STATUS_TODO` / `$STATUS_IN_PROGRESS` / `$STATUS_PENDING_REVIEW` / `$STATUS_SHIPPED`
+- `$BE_DIR` — Backend directory
+- `$SCHEMA_FILE` — Schema file path
+- `$ROUTE_REG_FILE` — Route registration file
+- `$BE_SERVICES_DIR` — Services directory
+- `$BE_ROUTES_DIR` — Routes directory
+- `$BE_TEST_CMD` — Backend test command
+- `$FE_DIR` — Frontend directory
+- `$TYPES_FILE` — Types file path
+- `$API_CLIENT_DIR` — API client directory
+- `$I18N_BASE_FILE` — Primary i18n file
+- `$I18N_SECONDARY_FILE` — Secondary i18n file (may be blank)
+- `$FE_PAGES_DIR` — Pages directory
+- `$FE_COMPONENTS_DIR` — Components directory
+- `$FE_TEST_CMD` — Frontend test command
+- `$APP_URL` — Production app URL
+- `$RUNTIME` — Runtime (bun/node)
+
+---
+
 ### Step 1: Load Brainstorming Skill
 
 Invoke the `super-ralph:product-brainstorm` skill. Follow its methodology, personas, and quality checks.
@@ -54,11 +84,11 @@ Read product documentation to build full context:
 
 If the topic maps to a specific module or feature, also:
 
-5. Scan related schema: Grep `work-agents/src/db/schema.ts` for module keywords
-6. Scan related pages: Glob `work-web/src/app/<module>/**` for existing UI
-7. Scan related routes: Grep `work-agents/src/` for module route files
-8. Check related i18n: Grep `work-web/src/i18n/en.ts` for module translations
-9. Check GitHub issues: `gh issue list --repo Forth-AI/work-ssot --search "<topic keywords>" --limit 15 --json number,title,labels,state`
+5. Scan related schema: Grep `$SCHEMA_FILE` for module keywords
+6. Scan related pages: Glob `$FE_PAGES_DIR/<module>/**` for existing UI
+7. Scan related routes: Grep `$BE_DIR/src/` for module route files
+8. Check related i18n: Grep `$I18N_BASE_FILE` for module translations
+9. Check GitHub issues: `gh issue list --repo $REPO --search "<topic keywords>" --limit 15 --json number,title,labels,state`
 
 Proceed IMMEDIATELY to Step 4.
 

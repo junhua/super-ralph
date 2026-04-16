@@ -1,17 +1,21 @@
 ---
 name: issue-management
-description: "Create and manage GitHub Issues and Milestones following the [EPIC]/[STORY]/[FIX]/[CHORE] taxonomy. Use when creating EPICs, stories, filing bugs, tracking requirements, managing milestones/releases, or syncing the ForthAI Work Project #9 board. Triggers on /super-ralph:issues or mentions of 'create epic', 'create story', 'file issue', 'update board', 'create milestone', 'release'."
+description: "Create and manage GitHub Issues and Milestones following the [EPIC]/[STORY]/[FIX]/[CHORE] taxonomy. Use when creating EPICs, stories, filing bugs, tracking requirements, managing milestones/releases, or syncing the project board. Triggers on /super-ralph:issues or mentions of 'create epic', 'create story', 'file issue', 'update board', 'create milestone', 'release'."
 ---
+
+> **Config:** Project-specific values (repo, org, project IDs, team members, paths) are loaded from `.claude/super-ralph-config.md`.
 
 # Issue Management
 
 ## Overview
 
-Create, classify, and manage GitHub Issues for the ForthAI Work monorepo using a strict taxonomy. Every issue gets a type tag, area label, and metadata via Project #9 fields. All issues live on the Project #9 board and follow a four-stage lifecycle from Todo to Shipped.
+Create, classify, and manage GitHub Issues for the monorepo using a strict taxonomy. Every issue gets a type tag, area label, and metadata via Project #$PROJECT_NUM fields. All issues live on the Project #$PROJECT_NUM board and follow a four-stage lifecycle from Todo to Shipped.
 
-**Announce at start:** "I'm using the issue-management skill to create and manage GitHub Issues on the ForthAI Work Project #9 board."
+**Announce at start:** "I'm using the issue-management skill to create and manage GitHub Issues on the Project #$PROJECT_NUM board."
 
 **Core insight:** Issues are the single source of truth for work scope. The taxonomy ([EPIC], [STORY], [FIX], [CHORE]) determines templates and sizing, the board column determines status, Milestones group EPICs into releases, and `Closes #N` in PRs automates lifecycle transitions. Getting the taxonomy right at creation time eliminates downstream confusion.
+
+> All `$VARIABLE` references below (e.g., `$REPO`, `$ORG`, `$PROJECT_NUM`) resolve from `.claude/super-ralph-config.md`.
 
 ## Issue Taxonomy
 
@@ -81,7 +85,7 @@ Non-user-facing technical work: DevOps, infrastructure, refactoring, test infras
 
 ### [QA] -- Test Verification
 
-A test verification task against acceptance criteria. Run by testers (Amy, Faye) or automated test suites. Typically created per-module when a milestone approaches UAT.
+A test verification task against acceptance criteria. Run by testers ($TESTERS) or automated test suites. Typically created per-module when a milestone approaches UAT.
 
 - **Title format:** `[QA] Module Name — N test cases`
 - **Labels:** `area/*`
@@ -106,8 +110,8 @@ A test verification task against acceptance criteria. Run by testers (Amy, Faye)
 gh issue create --title "[EPIC] Feature Title" \
   --label "area/fullstack" \
   --milestone "v1.2" \
-  --body "BODY" --repo Forth-AI/work-ssot
-# Then add to Project #9 and set fields: Type=epic, Size=XL, Priority=P1
+  --body "BODY" --repo $REPO
+# Then add to Project #$PROJECT_NUM and set fields: Type=epic, Size=XL, Priority=P1
 ```
 
 ### [STORY] under an EPIC
@@ -115,8 +119,8 @@ gh issue create --title "[EPIC] Feature Title" \
 ```bash
 gh issue create --title "[STORY] Feature description" \
   --label "vertical-slice,area/fullstack" \
-  --body "**Parent:** #N\n\nBODY" --repo Forth-AI/work-ssot
-# Then add to Project #9 and set fields: Type=story, Size=M, Priority=P1
+  --body "**Parent:** #N\n\nBODY" --repo $REPO
+# Then add to Project #$PROJECT_NUM and set fields: Type=story, Size=M, Priority=P1
 # Then create [FE] and [BE] sub-issues (see below)
 ```
 
@@ -125,8 +129,8 @@ gh issue create --title "[STORY] Feature description" \
 ```bash
 gh issue create --title "[FE] Feature description — Frontend" \
   --label "area/frontend" \
-  --body "**Parent:** #STORY_NUMBER\n\nBODY" --repo Forth-AI/work-ssot
-# Then add to Project #9 and set fields: Type=story, Size
+  --body "**Parent:** #STORY_NUMBER\n\nBODY" --repo $REPO
+# Then add to Project #$PROJECT_NUM and set fields: Type=story, Size
 ```
 
 ### [BE] under a STORY
@@ -134,8 +138,8 @@ gh issue create --title "[FE] Feature description — Frontend" \
 ```bash
 gh issue create --title "[BE] Feature description — Backend" \
   --label "area/backend" \
-  --body "**Parent:** #STORY_NUMBER\n\nBODY" --repo Forth-AI/work-ssot
-# Then add to Project #9 and set fields: Type=story, Size
+  --body "**Parent:** #STORY_NUMBER\n\nBODY" --repo $REPO
+# Then add to Project #$PROJECT_NUM and set fields: Type=story, Size
 ```
 
 ### [FIX] for bugs
@@ -143,8 +147,8 @@ gh issue create --title "[BE] Feature description — Backend" \
 ```bash
 gh issue create --title "[FIX] Bug description" \
   --label "area/backend" \
-  --body "BODY" --repo Forth-AI/work-ssot
-# Then add to Project #9 and set fields: Type=fix, Size=S, Priority=P0
+  --body "BODY" --repo $REPO
+# Then add to Project #$PROJECT_NUM and set fields: Type=fix, Size=S, Priority=P0
 ```
 
 ### [CHORE] for technical work
@@ -152,8 +156,8 @@ gh issue create --title "[FIX] Bug description" \
 ```bash
 gh issue create --title "[CHORE] Task description" \
   --label "area/backend" \
-  --body "BODY" --repo Forth-AI/work-ssot
-# Then add to Project #9 and set fields: Type=chore, Size=M, Priority=P2
+  --body "BODY" --repo $REPO
+# Then add to Project #$PROJECT_NUM and set fields: Type=chore, Size=M, Priority=P2
 ```
 
 ## Issue Body Templates
@@ -265,37 +269,37 @@ describe("[Story]", () => {
 ### Done Criteria
 - [ ] [Specific, verifiable outcome 1]
 - [ ] [Specific, verifiable outcome 2]
-- [ ] Tests pass: `bun test` in affected service(s)
+- [ ] Tests pass: `$RUNTIME test` in affected service(s)
 ```
 
 ## Project Board Management
 
-All issues must be added to the ForthAI Work Project #9 board. See `references/project-board-ids.md` for the complete ID reference.
+All issues must be added to the Project #$PROJECT_NUM board. See `references/project-board-ids.md` for the complete ID reference.
 
-### Add issue to Project #9
+### Add issue to Project #$PROJECT_NUM
 
 ```bash
-gh project item-add 9 --owner Forth-AI --url URL
+gh project item-add $PROJECT_NUM --owner $ORG --url URL
 ```
 
 ### Move item to a status column
 
 ```bash
 # Move to In Progress
-gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+gh project item-edit --project-id $PROJECT_ID \
   --id ITEM_ID \
-  --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-  --single-select-option-id 47fc9ee4
+  --field-id $STATUS_FIELD_ID \
+  --single-select-option-id $STATUS_IN_PROGRESS
 ```
 
 ### Status option IDs
 
 | Status | Option ID |
 |--------|-----------|
-| Todo | `f75ad846` |
-| In Progress | `47fc9ee4` |
-| Pending Review | `3eb0a766` |
-| Shipped | `98236657` |
+| Todo | `$STATUS_TODO` |
+| In Progress | `$STATUS_IN_PROGRESS` |
+| Pending Review | `$STATUS_PENDING_REVIEW` |
+| Shipped | `$STATUS_SHIPPED` |
 
 ### Get item ID after adding to project
 
@@ -303,7 +307,7 @@ After adding an issue to the project, retrieve its item ID for status updates:
 
 ```bash
 # Get item ID for an issue URL
-gh project item-list 9 --owner Forth-AI --format json \
+gh project item-list $PROJECT_NUM --owner $ORG --format json \
   | jq -r '.items[] | select(.content.url == "ISSUE_URL") | .id'
 ```
 
@@ -331,10 +335,10 @@ gh issue create --title "[EPIC] Feature Title" \
 ## Notes
 [Dependencies, design decisions]
 EOF
-)" --repo Forth-AI/work-ssot
+)" --repo $REPO
 ```
 
-> **Note:** Always attach EPICs to the active Milestone. Check `gh api repos/Forth-AI/work-ssot/milestones --jq '.[] | select(.state=="open")'` to find the current one.
+> **Note:** Always attach EPICs to the active Milestone. Check `gh api repos/$REPO/milestones --jq '.[] | select(.state=="open")'` to find the current one.
 
 ### Step 2: Create [STORY] sub-issues with [FE] and [BE]
 
@@ -361,7 +365,7 @@ STORY_URL=$(gh issue create --title "[STORY] Implement feature X" \
 - [BE] #TBD — Backend implementation
 - [FE] #TBD — Frontend implementation
 EOF
-)" --repo Forth-AI/work-ssot)
+)" --repo $REPO)
 
 STORY_NUM=$(echo "$STORY_URL" | grep -o '[0-9]*$')
 
@@ -386,7 +390,7 @@ See parent #${STORY_NUM} — Shared Contract section.
 ## TDD Tasks
 ...
 EOF
-)" --repo Forth-AI/work-ssot)
+)" --repo $REPO)
 
 BE_NUM=$(echo "$BE_URL" | grep -o '[0-9]*$')
 
@@ -414,24 +418,24 @@ See parent #${STORY_NUM} — Shared Contract section.
 ## TDD Tasks
 ...
 EOF
-)" --repo Forth-AI/work-ssot)
+)" --repo $REPO)
 
 FE_NUM=$(echo "$FE_URL" | grep -o '[0-9]*$')
 
 # Update STORY body with actual sub-issue numbers
-gh issue edit "$STORY_NUM" --body "..." --repo Forth-AI/work-ssot
+gh issue edit "$STORY_NUM" --body "..." --repo $REPO
 ```
 
-### Step 3: Add all issues to Project #9
+### Step 3: Add all issues to Project #$PROJECT_NUM
 
 ```bash
 # Add epic
-gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/EPIC_NUMBER
+gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/EPIC_NUMBER
 
 # Add each story and its FE/BE sub-issues
-gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/STORY_NUMBER
-gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/FE_NUMBER
-gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/BE_NUMBER
+gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/STORY_NUMBER
+gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/FE_NUMBER
+gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/BE_NUMBER
 ```
 
 ### Step 4: Set all to Todo status
@@ -440,10 +444,10 @@ Retrieve each item's project ID and set status to Todo:
 
 ```bash
 # For each item
-gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+gh project item-edit --project-id $PROJECT_ID \
   --id ITEM_ID \
-  --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-  --single-select-option-id f75ad846
+  --field-id $STATUS_FIELD_ID \
+  --single-select-option-id $STATUS_TODO
 ```
 
 ## Issue Lifecycle
@@ -473,18 +477,18 @@ Include `Closes #N` in the PR body to auto-close the issue on merge:
 ```bash
 gh pr create --title "feat: description" \
   --body "Closes #N\n\n## Summary\n..." \
-  --repo Forth-AI/work-ssot
+  --repo $REPO
 ```
 
 ### Auto-close on merge
 
-When a PR with `Closes #N` is merged, GitHub automatically closes issue #N. The Project #9 board automation moves closed issues to the Shipped column.
+When a PR with `Closes #N` is merged, GitHub automatically closes issue #N. The Project #$PROJECT_NUM board automation moves closed issues to the Shipped column.
 
 ## Metadata: Project Fields (preferred) + Labels
 
-### Project #9 Fields
+### Project #$PROJECT_NUM Fields
 
-Size, Type, and Priority are tracked via Project #9 single-select fields, not labels. After creating an issue and adding it to the project, set these fields:
+Size, Type, and Priority are tracked via Project #$PROJECT_NUM single-select fields, not labels. After creating an issue and adding it to the project, set these fields:
 
 | Field | Values |
 |-------|--------|
@@ -502,15 +506,15 @@ Size, Type, and Priority are tracked via Project #9 single-select fields, not la
 | Label | Used on | Purpose |
 |-------|---------|---------|
 | `vertical-slice` | STORY | Full-stack feature marker |
-| `area/backend` | All, [BE] | Changes in `work-agents/` |
-| `area/frontend` | All, [FE] | Changes in `work-web/` |
+| `area/backend` | All, [BE] | Changes in `$BE_DIR/` |
+| `area/frontend` | All, [FE] | Changes in `$FE_DIR/` |
 | `area/fullstack` | All | Changes in both services |
 | `blocked` | Any | Dependency blocker |
 | `priority/critical` | Any | Hotfix auto-detection trigger (repair-domains) |
 | `priority/urgent` | Any | Hotfix auto-detection trigger (repair-domains) |
 | `security` | Any | Security domain trigger (repair-domains) |
 
-> **Legacy:** Existing issues may have `size/*` labels from the previous convention. These remain valid but new issues should use Project #9 fields for size tracking.
+> **Legacy:** Existing issues may have `size/*` labels from the previous convention. These remain valid but new issues should use Project #$PROJECT_NUM fields for size tracking.
 
 ## Milestones & Releases
 
@@ -519,16 +523,16 @@ Size, Type, and Priority are tracked via Project #9 single-select fields, not la
 Each GitHub Milestone represents a minor version release (e.g., `v1.2`). Milestones are the product-level planning layer above EPICs.
 
 **Key rules:**
-- Only **Jeph** (Product Manager) creates Milestones
+- Only **$PM_USER** (Product Manager) creates Milestones
 - Each Milestone has a **business goal** in the description
 - EPICs and standalone REQ/FIX issues are attached to Milestones
 - Sub-issues do NOT need a milestone — they inherit from their parent
-- Releases require **UAT sign-off** from Amy and Faye
+- Releases require **UAT sign-off** from $TESTERS
 
 ### Creating a Milestone
 
 ```bash
-gh api repos/Forth-AI/work-ssot/milestones --method POST \
+gh api repos/$REPO/milestones --method POST \
   -f title="v1.2" \
   -f description="Goal: Ship knowledge intelligence — vector search and LLM-powered suggestions" \
   -f due_on="2026-04-15T00:00:00Z"
@@ -538,24 +542,24 @@ gh api repos/Forth-AI/work-ssot/milestones --method POST \
 
 ```bash
 # Attach EPIC to milestone
-gh issue edit 36 --milestone "v1.2" --repo Forth-AI/work-ssot
+gh issue edit 36 --milestone "v1.2" --repo $REPO
 
 # Attach standalone REQ/FIX to milestone
-gh issue edit 42 --milestone "v1.2" --repo Forth-AI/work-ssot
+gh issue edit 42 --milestone "v1.2" --repo $REPO
 ```
 
 ### Checking Milestone Progress
 
 ```bash
 # List all milestones
-gh api repos/Forth-AI/work-ssot/milestones \
+gh api repos/$REPO/milestones \
   --jq '.[] | "\(.number) \(.title) — \(.open_issues) open / \(.closed_issues) closed"'
 
 # List issues in a milestone
-gh issue list --milestone "v1.2" --repo Forth-AI/work-ssot --state all
+gh issue list --milestone "v1.2" --repo $REPO --state all
 
 # Check if milestone is ready for UAT (0 open issues)
-gh api repos/Forth-AI/work-ssot/milestones \
+gh api repos/$REPO/milestones \
   --jq '.[] | select(.title=="v1.2") | "Open: \(.open_issues), Closed: \(.closed_issues)"'
 ```
 
@@ -578,10 +582,10 @@ Every milestone description should include an execution plan:
 
 When all EPICs in a Milestone are closed:
 
-1. **Amy & Faye test** using acceptance criteria from the EPICs
+1. **$TESTERS test** using acceptance criteria from the EPICs
 2. **Bugs -> [FIX] issues** attached to the same Milestone
 3. **Devs fix** -> PRs close the [FIX] issues
-4. **Re-test** until both Amy and Faye sign off
+4. **Re-test** until all testers ($TESTERS) sign off
 5. **Tag the release:**
    ```bash
    git tag -a v1.2.0 -m "v1.2: Knowledge Intelligence"
@@ -589,16 +593,16 @@ When all EPICs in a Milestone are closed:
    ```
 6. **Close the milestone:**
    ```bash
-   gh api repos/Forth-AI/work-ssot/milestones/MILESTONE_NUMBER \
+   gh api repos/$REPO/milestones/MILESTONE_NUMBER \
      --method PATCH -f state="closed"
    ```
 
 ### Version Convention
 
 `major.minor.patch`:
-- **major** — Breaking API/platform changes (Jeph + Junhua decide)
-- **minor** — Feature release = GitHub Milestone (Jeph creates)
-- **patch** — Bug fixes between minor releases (Junhua tags, no UAT needed)
+- **major** — Breaking API/platform changes ($PM_USER + $TECH_LEAD decide)
+- **minor** — Feature release = GitHub Milestone ($PM_USER creates)
+- **patch** — Bug fixes between minor releases ($TECH_LEAD tags, no UAT needed)
 
 ## Integration with super-ralph Pipeline
 
@@ -633,7 +637,7 @@ When `/super-ralph:finalise` merges a PR:
 
 When creating issues and ambiguity arises -- scope boundaries, label selection, sub-issue granularity -- apply the autonomous decision pattern:
 
-1. Check existing issues for precedent (`gh issue list --repo Forth-AI/work-ssot`)
+1. Check existing issues for precedent (`gh issue list --repo $REPO`)
 2. Check the product vision and roadmap for alignment
 3. Pick the option most consistent with existing patterns
 4. Document the decision in the issue body
@@ -641,15 +645,14 @@ When creating issues and ambiguity arises -- scope boundaries, label selection, 
 
 ## Team Roles
 
-| Name | Role | Issue Actions |
-|------|------|--------------|
-| **Jeph** | Product Manager | Creates Milestones, defines business goals, prioritizes EPICs |
-| **Junhua** | Tech Lead | Creates EPICs/sub-issues, reviews PRs |
-| **Amy** | Internal Tester | UAT testing, files [FIX] issues for bugs |
-| **Faye** | Internal Tester | UAT testing, files [FIX] issues for bugs |
-| **Jei / Tao / Twissa** | Developers | Self-assign sub-issues, create PRs with `Closes #N` |
+| Role | Issue Actions |
+|------|--------------|
+| **$PM_USER** (Product Manager) | Creates Milestones, defines business goals, prioritizes EPICs |
+| **$TECH_LEAD** (Tech Lead) | Creates EPICs/sub-issues, reviews PRs |
+| **$TESTERS** (Testers) | UAT testing, file [FIX] issues for bugs |
+| Developers | Self-assign sub-issues, create PRs with `Closes #N` |
 
 ## References
 
 - `references/issue-templates.md` -- Copy-paste-ready issue body templates for each type
-- `references/project-board-ids.md` -- Project #9 field IDs and option IDs for board management
+- `references/project-board-ids.md` -- Project #$PROJECT_NUM field IDs and option IDs for board management

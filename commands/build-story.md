@@ -45,7 +45,24 @@ All inter-phase state lives in temp files. Each sub-agent reads only what its ph
 
 Execute all phases in order. **NEVER ask for human input** — dispatch research + SME agents for all decisions.
 
-### Step 0: Resolve Story Context
+### Step 0a: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+
+Extract these values for use in all subsequent steps:
+- `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
+- `$ORG` — GitHub org (e.g., `Forth-AI`)
+- `$PROJECT_NUM` — Project board number
+- `$PROJECT_ID` — Project board GraphQL ID
+- `$STATUS_FIELD_ID` — Status field ID
+- `$STATUS_SHIPPED` — Shipped status option ID
+- `$BE_DIR` — Backend directory (e.g., `work-agents`)
+- `$FE_DIR` — Frontend directory (e.g., `work-web`)
+- `$BE_TEST_CMD` — Backend test command (e.g., `cd work-agents && bun test`)
+- `$FE_TEST_CMD` — Frontend test command (e.g., `cd work-web && bun test`)
+- `$APP_URL` — Production app URL (e.g., `https://app.forthai.work`)
+
+### Step 0b: Resolve Story Context
 
 Parse the STORY argument and build the context file.
 
@@ -57,7 +74,7 @@ STORY_DIR="/tmp/super-ralph-story-$STORY_ID"
 mkdir -p "$STORY_DIR"
 
 # Fetch issue
-gh issue view $STORY_ID --repo Forth-AI/work-ssot --json number,title,body,labels,milestone,state,assignees
+gh issue view $STORY_ID --repo $REPO --json number,title,body,labels,milestone,state,assignees
 ```
 
 Extract from the issue:
@@ -69,9 +86,9 @@ Extract from the issue:
 
 If a parent epic exists, also read the epic issue for broader context:
 ```bash
-PARENT_EPIC=$(gh issue view $STORY_ID --repo Forth-AI/work-ssot --json body --jq '.body' | grep -oP 'Parent:?\s*#\K\d+')
+PARENT_EPIC=$(gh issue view $STORY_ID --repo $REPO --json body --jq '.body' | grep -oP 'Parent:?\s*#\K\d+')
 if [ -n "$PARENT_EPIC" ]; then
-  gh issue view $PARENT_EPIC --repo Forth-AI/work-ssot --json number,title,body
+  gh issue view $PARENT_EPIC --repo $REPO --json number,title,body
 fi
 ```
 
@@ -169,7 +186,7 @@ Also check git state:
 git branch -a | grep "super-ralph/$STORY_SLUG"
 
 # Does a PR already exist?
-gh pr list --head "super-ralph/$STORY_SLUG" --repo Forth-AI/work-ssot --json number,state
+gh pr list --head "super-ralph/$STORY_SLUG" --repo $REPO --json number,state
 ```
 
 - Branch exists + no PR → resume from review-fix
@@ -185,7 +202,7 @@ Report: `"Resuming Story $STORY_ID from Phase N ($PHASE_NAME)"`
 **Skip detection:** Before dispatching the plan sub-agent, check if the story issue body already contains TDD tasks:
 
 ```bash
-STORY_BODY=$(gh issue view $STORY_ID --repo Forth-AI/work-ssot --json body --jq '.body')
+STORY_BODY=$(gh issue view $STORY_ID --repo $REPO --json body --jq '.body')
 HAS_TDD=$(echo "$STORY_BODY" | grep -c "## TDD Tasks\|### Task 0:\|### Task 1:" || true)
 ```
 
@@ -198,9 +215,9 @@ If `HAS_TDD > 0`:
 
 **Also check for [FE] and [BE] sub-issues:**
 ```bash
-FE_ISSUE=$(gh issue list --repo Forth-AI/work-ssot --json number,title,body \
+FE_ISSUE=$(gh issue list --repo $REPO --json number,title,body \
   --jq "[.[] | select(.body | test(\"Parent:?\\s*#$STORY_ID\"; \"i\")) | select(.title | startswith(\"[FE]\"))] | first | .number")
-BE_ISSUE=$(gh issue list --repo Forth-AI/work-ssot --json number,title,body \
+BE_ISSUE=$(gh issue list --repo $REPO --json number,title,body \
   --jq "[.[] | select(.body | test(\"Parent:?\\s*#$STORY_ID\"; \"i\")) | select(.title | startswith(\"[BE]\"))] | first | .number")
 ```
 
@@ -325,8 +342,8 @@ Task tool:
 
     4. **After all tasks:** Run final verification:
        ```bash
-       cd work-agents && bun test
-       cd work-web && bun test
+       $BE_TEST_CMD
+       $FE_TEST_CMD
        ```
 
     5. **Push the branch:**
@@ -488,7 +505,7 @@ Task tool:
 ```bash
 # Poll for Vercel bot comment with preview URL (max 5 minutes)
 for i in $(seq 1 30); do
-  PREVIEW_URL=$(gh api repos/Forth-AI/work-ssot/issues/$PR_NUMBER/comments \
+  PREVIEW_URL=$(gh api repos/$REPO/issues/$PR_NUMBER/comments \
     --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null \
     | grep -oE 'https://[a-zA-Z0-9._-]+\.vercel\.app' | head -1)
   if [ -n "$PREVIEW_URL" ]; then break; fi
@@ -562,12 +579,12 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
 
 2. **Wait for CI checks:**
    ```bash
-   gh pr checks $PR_NUMBER --repo Forth-AI/work-ssot --watch
+   gh pr checks $PR_NUMBER --repo $REPO --watch
    ```
 
 3. **Merge PR** (squash into staging):
    ```bash
-   gh pr merge $PR_NUMBER --squash --delete-branch --repo Forth-AI/work-ssot
+   gh pr merge $PR_NUMBER --squash --delete-branch --repo $REPO
    ```
 
 4. **Pull merged changes:**
@@ -583,7 +600,7 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    echo "Waiting for Vercel staging deployment..."
    DEPLOY_OK=false
    for i in $(seq 1 36); do
-     STATUS_URL=$(gh api repos/Forth-AI/work-ssot/deployments \
+     STATUS_URL=$(gh api repos/$REPO/deployments \
        --jq '[.[] | select(.ref=="staging")] | first | .statuses_url' 2>/dev/null)
      if [ -n "$STATUS_URL" ]; then
        STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
@@ -606,21 +623,21 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    ```bash
    # Auto-close should work via "Closes #N" in PR body
    # Verify and force-close if needed:
-   STATE=$(gh issue view $STORY_ID --repo Forth-AI/work-ssot --json state --jq '.state')
+   STATE=$(gh issue view $STORY_ID --repo $REPO --json state --jq '.state')
    if [ "$STATE" = "OPEN" ]; then
-     gh issue close $STORY_ID --repo Forth-AI/work-ssot --comment "Shipped in PR #$PR_NUMBER"
+     gh issue close $STORY_ID --repo $REPO --comment "Shipped in PR #$PR_NUMBER"
    fi
    ```
 
 7. **Move to Shipped on Project #9:**
    ```bash
-   ITEM_ID=$(gh project item-list 9 --owner Forth-AI --format json | \
+   ITEM_ID=$(gh project item-list $PROJECT_NUM --owner $ORG --format json | \
      python3 -c "import json,sys; [print(i['id']) for i in json.load(sys.stdin)['items'] if i.get('content',{}).get('number')==$STORY_ID]" 2>/dev/null)
    if [ -n "$ITEM_ID" ]; then
-     gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+     gh project item-edit --project-id $PROJECT_ID \
        --id "$ITEM_ID" \
-       --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-       --single-select-option-id 98236657
+       --field-id $STATUS_FIELD_ID \
+       --single-select-option-id $STATUS_SHIPPED
    fi
    ```
 
@@ -648,10 +665,10 @@ This phase runs **inline** (not as a sub-agent) since it's quick and the orchest
    If all sub-issues of the parent epic are now closed:
    ```bash
    if [ -n "$PARENT_EPIC" ]; then
-     OPEN_SUBS=$(gh issue list --repo Forth-AI/work-ssot --json body,state \
+     OPEN_SUBS=$(gh issue list --repo $REPO --json body,state \
        --jq "[.[] | select(.body | test(\"Parent:?\\s*#$PARENT_EPIC\"; \"i\")) | select(.state==\"OPEN\")] | length")
      if [ "$OPEN_SUBS" = "0" ]; then
-       gh issue close $PARENT_EPIC --repo Forth-AI/work-ssot --comment "All stories shipped. Epic complete."
+       gh issue close $PARENT_EPIC --repo $REPO --comment "All stories shipped. Epic complete."
        echo "Epic #$PARENT_EPIC complete — all stories shipped."
        echo "Ready for: /super-ralph:release"
      fi

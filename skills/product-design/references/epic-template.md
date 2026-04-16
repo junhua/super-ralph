@@ -1,5 +1,7 @@
 # Epic Template
 
+> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md`.
+
 Use this template when creating epics. Fill in all bracketed sections. Remove comments before finalizing.
 
 ---
@@ -7,7 +9,7 @@ Use this template when creating epics. Fill in all bracketed sections. Remove co
 ````markdown
 # Epic: [Outcome-Focused Title]
 
-> **Product:** [Product name, e.g., ForthAI Work]
+> **Product:** [Product name]
 > **Phase:** [Roadmap phase, e.g., Phase 2: Core Platform]
 > **Created:** [YYYY-MM-DD]
 > **Status:** Draft | Ready | In Progress | Done
@@ -144,7 +146,7 @@ export type CreateResourceInput = Pick<ResourceName, "field1" | "field2">;
 
 **Schema:**
 ```typescript
-// work-agents/src/db/schema.ts -- append to // --- [Feature] ----
+// $SCHEMA_FILE -- append to // --- [Feature] ----
 export const tableName = pgTable("table_name", { ... });
 ```
 
@@ -178,9 +180,9 @@ featureKey: {
 
 **Patterns to Follow:**
 ```
-Service: work-agents/src/services/knowledge.ts
-Route:   work-agents/src/routes/knowledge.ts
-Page:    work-web/src/app/(app)/[orgId]/knowledge/page.tsx
+Service: $BE_SERVICES_DIR/knowledge.ts
+Route:   $BE_ROUTES_DIR/knowledge.ts
+Page:    $FE_PAGES_DIR/knowledge/page.tsx
 ```
 
 #### FE Sub-Issue Scope

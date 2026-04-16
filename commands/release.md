@@ -9,6 +9,27 @@ allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh:*)", "Ba
 
 Promote staging to production: pre-flight checks, QA verification on staging, create staging→main PR, Codex CLI review + fix loop, merge to main, tag, milestone closure, release notes, cleanup. Runs as a ralph-loop with subagent-driven orchestration.
 
+### Step 0: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+
+Extract these values for use in all subsequent steps:
+- `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
+- `$ORG` — GitHub org (e.g., `Forth-AI`)
+- `$PROJECT_NUM` — Project board number
+- `$PROJECT_ID` — Project board GraphQL ID
+- `$STATUS_FIELD_ID` — Status field ID
+- `$STATUS_SHIPPED` — Shipped status option ID
+- `$BE_DIR` — Backend directory (e.g., `work-agents`)
+- `$FE_DIR` — Frontend directory (e.g., `work-web`)
+- `$BE_TEST_CMD` — Backend test command (e.g., `cd work-agents && bun test`)
+- `$FE_TEST_CMD` — Frontend test command (e.g., `cd work-web && bun test`)
+- `$APP_URL` — Production app URL (e.g., `https://app.forthai.work`)
+- `$PROD_URLS` — All production URLs to health-check (from Production URLs table)
+- `$PM_USER` — Product manager name
+- `$TECH_LEAD` — Tech lead name
+- `$TESTERS` — Tester names (e.g., `Amy & Faye`)
+
 ## Branch Model
 
 ```
@@ -17,7 +38,7 @@ feature branches ──PR──▶ staging (default branch, preview deploys)
                      /super-ralph:release
                               │
                               ▼
-                         main (production: work.forth.ai / app.forthai.work)
+                         main (production, URLs from config)
 ```
 
 - **staging** = GitHub default branch. All feature PRs merge here via `/super-ralph:finalise`.
@@ -42,7 +63,7 @@ Execute phases in order. **NEVER ask for human input** -- research + SME for dec
    - If `--milestone` provided: use it
    - Else: auto-detect:
      ```bash
-     gh api repos/Forth-AI/work-ssot/milestones \
+     gh api repos/$REPO/milestones \
        --jq '.[] | select(.state=="open") | "\(.number) \(.title)"' | head -1
      ```
    - Extract `MILESTONE` (title) and `MILESTONE_NUMBER` from result
@@ -53,7 +74,7 @@ Execute phases in order. **NEVER ask for human input** -- research + SME for dec
 
 3. **Get milestone metadata:**
    ```bash
-   gh api repos/Forth-AI/work-ssot/milestones/$MILESTONE_NUMBER \
+   gh api repos/$REPO/milestones/$MILESTONE_NUMBER \
      --jq '{title: .title, goal: .description, open: .open_issues, closed: .closed_issues}'
    ```
    - Store `MILESTONE_GOAL` from description
@@ -78,8 +99,8 @@ ALL must pass to proceed. Pre-flight is mandatory -- never skip even with `--no-
 
 | Check | Command | Pass condition |
 |-------|---------|----------------|
-| All issues closed | `gh issue list --milestone "$MILESTONE" --state open --repo Forth-AI/work-ssot --json number --jq 'length'` | `0` |
-| No open PRs to staging | `gh pr list --base staging --state open --repo Forth-AI/work-ssot --json number --jq 'length'` | `0` |
+| All issues closed | `gh issue list --milestone "$MILESTONE" --state open --repo $REPO --json number --jq 'length'` | `0` |
+| No open PRs to staging | `gh pr list --base staging --state open --repo $REPO --json number --jq 'length'` | `0` |
 | Staging up to date | `git diff origin/staging --quiet` | exit 0 |
 | Staging ahead of main | `git log origin/main..origin/staging --oneline \| head -1` | non-empty (staging has new commits) |
 | Tag unused | `git tag -l "$TAG"` | empty |
@@ -106,7 +127,7 @@ Task tool:
     ${CLAUDE_PLUGIN_ROOT}/skills/browser-verification/references/smoke-test-checklist.md
     against the STAGING preview URL (not production).
     Find the staging URL from the most recent Vercel deployment:
-      gh api repos/Forth-AI/work-ssot/deployments --jq '[.[] | select(.ref=="staging")] | first | .statuses_url'
+      gh api repos/$REPO/deployments --jq '[.[] | select(.ref=="staging")] | first | .statuses_url'
     Or use the Vercel preview URL pattern for the staging branch.
     Report each check as PASS/FAIL with screenshot evidence.
     Output a summary table at the end.
@@ -121,8 +142,8 @@ Task tool:
   max_turns: 20
   prompt: |
     Run full test suites on the staging branch:
-      cd work-agents && bun test
-      cd work-web && bun test
+      $BE_TEST_CMD
+      $FE_TEST_CMD
     Report: total passed, total failed, total skipped.
     List each failure with file path and assertion message.
 ```
@@ -136,7 +157,7 @@ Task tool:
   max_turns: 10
   prompt: |
     Run API contract tests on the staging branch:
-      cd work-agents && bun test src/contracts.test.ts
+      $BE_TEST_CMD src/contracts.test.ts
     Report PASS or FAIL. If FAIL, list each broken contract with expected vs actual.
 ```
 
@@ -149,7 +170,7 @@ Task tool:
   max_turns: 25
   prompt: |
     Audit acceptance criteria coverage for milestone "$MILESTONE":
-    1. List closed issues: gh issue list --milestone "$MILESTONE" --state closed --repo Forth-AI/work-ssot --json number,title,body
+    1. List closed issues: gh issue list --milestone "$MILESTONE" --state closed --repo $REPO --json number,title,body
     2. For each issue: extract acceptance criteria from body (lines starting with "- [ ]" or "- [x]")
     3. For each criterion: search codebase for tests covering it (grep test files for keywords)
     4. Report: total criteria, covered count, coverage percentage, list of uncovered criteria.
@@ -176,14 +197,14 @@ Collect results from Phase 2 agents. Evaluate with this decision table:
 
 1. **Generate release notes from merged PRs (into staging):**
    ```bash
-   gh pr list --state merged --base staging --search "milestone:$MILESTONE" --repo Forth-AI/work-ssot \
+   gh pr list --state merged --base staging --search "milestone:$MILESTONE" --repo $REPO \
      --json number,title,author \
      --jq '.[] | "- #\(.number) \(.title) (@\(.author.login))"' > /tmp/pr-list-$TAG.txt
    ```
 
 2. **Count closed issues:**
    ```bash
-   ISSUE_COUNT=$(gh issue list --milestone "$MILESTONE" --state closed --repo Forth-AI/work-ssot \
+   ISSUE_COUNT=$(gh issue list --milestone "$MILESTONE" --state closed --repo $REPO \
      --json number --jq 'length')
    PR_COUNT=$(wc -l < /tmp/pr-list-$TAG.txt | tr -d ' ')
    ```
@@ -260,12 +281,12 @@ Create a pull request to promote staging into main.
    Closes milestone $MILESTONE after merge.
    PREOF
    )" \
-     --repo Forth-AI/work-ssot
+     --repo $REPO
    ```
 
 4. **Store PR number:**
    ```bash
-   RELEASE_PR=$(gh pr list --base main --head staging --state open --repo Forth-AI/work-ssot --json number --jq '.[0].number')
+   RELEASE_PR=$(gh pr list --base main --head staging --state open --repo $REPO --json number --jq '.[0].number')
    ```
 
 5. **Report:**
@@ -286,12 +307,12 @@ Skip if `--no-codex` was passed. Otherwise use OpenAI Codex CLI to review the re
 2. **Run Codex review on the PR diff:**
    ```bash
    codex --approval-mode full-auto \
-     "Review the diff between the staging and main branches of this repository (Forth-AI/work-ssot). \
+     "Review the diff between the staging and main branches of this repository ($REPO). \
       Run: git diff origin/main..origin/staging \
       Look for: bugs, logic errors, security vulnerabilities, breaking changes, missing error handling, \
       and any issues that would be risky to deploy to production. \
       For each issue found, fix it directly in the code. \
-      After fixing, run tests: cd work-agents && bun test && cd ../work-web && bun test \
+      After fixing, run tests: $BE_TEST_CMD && $FE_TEST_CMD \
       Commit each fix with message format: fix: [description] (codex-review) \
       If no issues found, output: CODEX_REVIEW_CLEAN"
    ```
@@ -308,16 +329,16 @@ Skip if `--no-codex` was passed. Otherwise use OpenAI Codex CLI to review the re
 4. **Update the PR** (GitHub auto-updates since head is staging):
    ```bash
    if [ "$CODEX_COMMITS" -gt "0" ]; then
-     gh pr comment "$RELEASE_PR" --body "Codex review complete: $CODEX_COMMITS fix(es) applied and pushed." --repo Forth-AI/work-ssot
+     gh pr comment "$RELEASE_PR" --body "Codex review complete: $CODEX_COMMITS fix(es) applied and pushed." --repo $REPO
    else
-     gh pr comment "$RELEASE_PR" --body "Codex review complete: no issues found." --repo Forth-AI/work-ssot
+     gh pr comment "$RELEASE_PR" --body "Codex review complete: no issues found." --repo $REPO
    fi
    ```
 
 5. **Re-run tests after Codex fixes** (if any fixes were made):
    ```bash
    if [ "$CODEX_COMMITS" -gt "0" ]; then
-     cd work-agents && bun test && cd ../work-web && bun test
+     $BE_TEST_CMD && $FE_TEST_CMD
      if [ $? -ne 0 ]; then
        echo "WARN: Tests failed after Codex fixes. Dispatching issue-fixer."
        # Dispatch issue-fixer subagent to resolve test failures
@@ -332,12 +353,12 @@ Merge the staging → main PR. This is the production deployment moment.
 
 1. **Wait for CI checks to pass:**
    ```bash
-   gh pr checks "$RELEASE_PR" --repo Forth-AI/work-ssot --watch
+   gh pr checks "$RELEASE_PR" --repo $REPO --watch
    ```
 
 2. **Merge with a merge commit** (not squash — preserve full history of the release):
    ```bash
-   gh pr merge "$RELEASE_PR" --merge --repo Forth-AI/work-ssot
+   gh pr merge "$RELEASE_PR" --merge --repo $REPO
    ```
    - **Why merge commit, not squash?** The staging→main PR bundles many features. Squashing would lose individual commit history. A merge commit preserves the full feature-by-feature history on main while creating a clear merge point for the release.
 
@@ -360,7 +381,7 @@ Merge the staging → main PR. This is the production deployment moment.
    echo "Waiting for Vercel production deployment on main..."
    DEPLOY_OK=false
    for i in $(seq 1 48); do
-     STATUS_URL=$(gh api repos/Forth-AI/work-ssot/deployments \
+     STATUS_URL=$(gh api repos/$REPO/deployments \
        --jq '[.[] | select(.ref=="main" and .environment=="production")] | first | .statuses_url' 2>/dev/null)
      if [ -n "$STATUS_URL" ]; then
        STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
@@ -379,7 +400,7 @@ Merge the staging → main PR. This is the production deployment moment.
 
 2. **Verify HTTP health of production URLs:**
    ```bash
-   for URL in "https://app.forthai.work" "https://forthai.work"; do
+   for URL in $PROD_URLS; do
      HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" --max-time 15)
      if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
        echo "HEALTHY: $URL → HTTP $HTTP_STATUS"
@@ -394,7 +415,7 @@ Merge the staging → main PR. This is the production deployment moment.
    - Report: `"PRODUCTION DEPLOYMENT UNHEALTHY — do NOT seal the release. Investigate Vercel build logs."`
    - Check Vercel deployment logs:
      ```bash
-     vercel ls --scope forth-ai 2>/dev/null | head -5
+     vercel ls 2>/dev/null | head -5
      ```
    - Output `RELEASE_BLOCKED` and stop — do NOT proceed to Phase 8 (tagging). A failed production deployment must be fixed before sealing the version.
 
@@ -418,7 +439,7 @@ Execute in order on the **main** branch. Each step is final -- no rollback.
 
 3. **Close milestone:**
    ```bash
-   gh api repos/Forth-AI/work-ssot/milestones/$MILESTONE_NUMBER \
+   gh api repos/$REPO/milestones/$MILESTONE_NUMBER \
      --method PATCH -f state="closed"
    ```
 
@@ -427,20 +448,20 @@ Execute in order on the **main** branch. Each step is final -- no rollback.
    gh release create "$TAG" \
      --title "$TAG: $MILESTONE_GOAL" \
      --notes-file /tmp/release-notes-$TAG.md \
-     --repo Forth-AI/work-ssot
+     --repo $REPO
    ```
 
-5. **Verify Project #9 board** -- confirm all milestone items are in Shipped column:
+5. **Verify Project #$PROJECT_NUM board** -- confirm all milestone items are in Shipped column:
    ```bash
-   gh project item-list 9 --owner Forth-AI --format json \
+   gh project item-list $PROJECT_NUM --owner $ORG --format json \
      | jq '[.items[] | select(.content.milestone.title == "'$MILESTONE'" and .status != "Shipped")] | length'
    ```
    - If any items not Shipped, move them:
      ```bash
-     gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+     gh project item-edit --project-id $PROJECT_ID \
        --id "$ITEM_ID" \
-       --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-       --single-select-option-id 98236657
+       --field-id $STATUS_FIELD_ID \
+       --single-select-option-id $STATUS_SHIPPED
      ```
 
 ### Phase 9: Sync Staging
@@ -498,7 +519,7 @@ After the release, fast-forward staging to match main so it starts clean for the
    - Milestone: $MILESTONE (closed)
    - Tag: $TAG (pushed to main)
    - Release PR: #$RELEASE_PR (merged)
-   - Production deployment: [HEALTHY / UNHEALTHY] — app.forthai.work HTTP [status], forthai.work HTTP [status]
+   - Production deployment: [HEALTHY / UNHEALTHY] — $PROD_URLS HTTP [status]
    - Codex review: [clean / N fixes applied]
    - PRs merged: [count]
    - Issues closed: [count]
@@ -521,6 +542,6 @@ After the release, fast-forward staging to match main so it starts clean for the
 - **Verify production deployment before sealing.** After merge to main, Phase 7b verifies Vercel production deployment is healthy (HTTP 200 on production URLs). Do NOT tag or seal the release until production is confirmed healthy. Merge to main != production is live.
 - **NEVER ask for human input** -- use research agents and SME brainstormers for ambiguous decisions.
 - **Idempotent** -- running twice detects the existing tag and exits cleanly. No duplicate tags, releases, or commits.
-- **Use issue-management skill conventions** -- milestone API calls, Project #9 board IDs, and status option IDs from `references/project-board-ids.md`.
+- **Use issue-management skill conventions** -- milestone API calls, Project #$PROJECT_NUM board IDs, and status option IDs from config.
 - **Commit from root repo** -- all documentation updates happen in the main working directory, not a worktree.
-- **Version convention** -- `major.minor.patch`: Milestone = minor, post-release fixes = patch. Only Jeph + Junhua decide major bumps.
+- **Version convention** -- `major.minor.patch`: Milestone = minor, post-release fixes = patch. Only $PM_USER + $TECH_LEAD decide major bumps.

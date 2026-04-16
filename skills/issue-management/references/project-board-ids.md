@@ -1,73 +1,73 @@
-# ForthAI Work Project #9 Board IDs
+# Project Board IDs
 
-Reference for all Project #9 field IDs and option IDs used in `gh project` CLI commands.
+> **Config:** All project-specific IDs are loaded from `.claude/super-ralph-config.md`. This file documents the structure and meaning of each field.
 
 ## Project
 
-- **Project Number:** 9
-- **Owner:** Forth-AI
-- **Project ID:** PVT_kwDOCrEjbc4BTqhr
+- **Project Number:** `$PROJECT_NUM`
+- **Owner:** `$ORG`
+- **Project ID:** `$PROJECT_ID`
 
 ## Status Field
 
-- **Field ID:** PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc
+- **Field ID:** `$STATUS_FIELD_ID`
 - **Options:**
-  - Todo: `f75ad846`
-  - In Progress: `47fc9ee4`
-  - Pending Review: `3eb0a766`
-  - Shipped: `98236657`
+  - Todo: `$STATUS_TODO`
+  - In Progress: `$STATUS_IN_PROGRESS`
+  - Pending Review: `$STATUS_PENDING_REVIEW`
+  - Shipped: `$STATUS_SHIPPED`
 
 ## Repository
 
-- **Repo:** Forth-AI/work-ssot
+- **Repo:** `$REPO`
 
 ## Quick Reference Commands
 
 ### Add issue to project
 
 ```bash
-gh project item-add 9 --owner Forth-AI --url https://github.com/Forth-AI/work-ssot/issues/NUMBER
+gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/NUMBER
 ```
 
 ### Get item ID for an issue
 
 ```bash
-gh project item-list 9 --owner Forth-AI --format json \
-  | jq -r '.items[] | select(.content.url == "https://github.com/Forth-AI/work-ssot/issues/NUMBER") | .id'
+gh project item-list $PROJECT_NUM --owner $ORG --format json \
+  | jq -r '.items[] | select(.content.url == "https://github.com/$REPO/issues/NUMBER") | .id'
 ```
 
 ### Set status to Todo
 
 ```bash
-gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+gh project item-edit --project-id $PROJECT_ID \
   --id ITEM_ID \
-  --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-  --single-select-option-id f75ad846
+  --field-id $STATUS_FIELD_ID \
+  --single-select-option-id $STATUS_TODO
 ```
 
 ### Set status to In Progress
 
 ```bash
-gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+gh project item-edit --project-id $PROJECT_ID \
   --id ITEM_ID \
-  --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-  --single-select-option-id 47fc9ee4
+  --field-id $STATUS_FIELD_ID \
+  --single-select-option-id $STATUS_IN_PROGRESS
 ```
 
 ### Set status to Pending Review
 
 ```bash
-gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+gh project item-edit --project-id $PROJECT_ID \
   --id ITEM_ID \
-  --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-  --single-select-option-id 3eb0a766
+  --field-id $STATUS_FIELD_ID \
+  --single-select-option-id $STATUS_PENDING_REVIEW
 ```
 
 ### Set status to Shipped
 
 ```bash
-gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+gh project item-edit --project-id $PROJECT_ID \
   --id ITEM_ID \
-  --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-  --single-select-option-id 98236657
+  --field-id $STATUS_FIELD_ID \
+  --single-select-option-id $STATUS_SHIPPED
 ```

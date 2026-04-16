@@ -16,7 +16,7 @@ Fast-track reactive workflow for bug fixes, feature modifications, and UI change
 ## Arguments
 
 Parse the user's input for:
-- **#N** (optional): GitHub issue number — fetch with `gh issue view N --repo Forth-AI/work-ssot --json title,body,labels`
+- **#N** (optional): GitHub issue number — fetch with `gh issue view N --repo $REPO --json title,body,labels`
 - **Text description** (optional): Free-form problem statement used as codebase search query
 - **--screenshot** (optional): Path to image showing the visual issue
 - **--url** (optional): URL to inspect via claude-in-chrome
@@ -45,13 +45,30 @@ All inter-phase state lives in temp files for pipeline resume:
 
 Execute all steps autonomously. **Do NOT ask the user for input at any point.**
 
+### Step 0: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+
+Extract these values for use in all subsequent steps:
+- `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
+- `$ORG` — GitHub org (e.g., `Forth-AI`)
+- `$PROJECT_NUM` — Project board number
+- `$PROJECT_ID` — Project board GraphQL ID
+- `$STATUS_FIELD_ID` — Status field ID
+- `$STATUS_SHIPPED` — Shipped status option ID
+- `$BE_DIR` — Backend directory (e.g., `work-agents`)
+- `$FE_DIR` — Frontend directory (e.g., `work-web`)
+- `$BE_TEST_CMD` — Backend test command (e.g., `cd work-agents && bun test`)
+- `$FE_TEST_CMD` — Frontend test command (e.g., `cd work-web && bun test`)
+- `$APP_URL` — Production app URL (e.g., `https://app.forthai.work`)
+
 ### Step 1: Parse Input & Gather Context
 
 Collect context from every source provided:
 
 | Input | Action |
 |-------|--------|
-| `#N` | `gh issue view N --repo Forth-AI/work-ssot --json title,body,labels,milestone` — extract acceptance criteria, steps to reproduce, labels |
+| `#N` | `gh issue view N --repo $REPO --json title,body,labels,milestone` — extract acceptance criteria, steps to reproduce, labels |
 | Text | Use as search query for codebase in Step 3 |
 | `--screenshot` | Read image file to understand the visual issue |
 | `--url` | Use claude-in-chrome: `tabs_create` → `navigate` → `read_page` / `get_page_text` / `read_console_messages` |
@@ -68,8 +85,8 @@ Invoke `super-ralph:repair-domains` for domain detection heuristics and routing.
 
 1. **Label-based** (if `#N` provided): Read issue labels for `area/frontend`, `area/backend`, `security`, etc.
 2. **File-path-based**: Search codebase for files matching the problem statement. Classify by directory:
-   - `work-web/` → frontend
-   - `work-agents/` → backend
+   - `$FE_DIR/` → frontend
+   - `$BE_DIR/` → backend
    - `.github/`, `vercel.*`, `Dockerfile*` → devops
    - `**/terraform/**`, `**/pulumi/**` → cloud-infra
    - `**/auth/**`, `**/session/**`, `**/cors.*` → security
@@ -94,7 +111,7 @@ Auto-enable hotfix when ANY of:
 - Issue label is `priority/critical` or `priority/urgent`
 - Issue label is `security` with severity indicators in body
 - Problem statement mentions "production", "prod", "live site", "customer-facing"
-- `--url` points to a production domain (`app.forthai.work`, `forthai.work`, `work.forth.ai`)
+- `--url` points to a production domain (matches URLs from config's Production URLs section)
 
 If auto-detected: `"Auto-detected hotfix: [reason]. Branching from main."`
 
@@ -194,8 +211,8 @@ For each logical change:
 
 1. **Write failing test** that reproduces the bug or specifies the new behavior
 2. **Verify RED:** Run domain-appropriate test command:
-   - Frontend: `cd work-web && bun test <test-file>`
-   - Backend: `cd work-agents && bun test <test-file>`
+   - Frontend: `$FE_TEST_CMD <test-file>` (within `$FE_DIR`)
+   - Backend: `$BE_TEST_CMD <test-file>` (within `$BE_DIR`)
    - Security: Run both + auth-specific tests
    - DevOps: Validate configs
 3. **Implement minimal fix** — apply domain-specific constraints (e.g., i18n for frontend, structured errors for backend, no credential logging for security)
@@ -335,7 +352,7 @@ Task tool:
 **Wait for preview deployment:**
 ```bash
 for i in $(seq 1 30); do
-  PREVIEW_URL=$(gh api repos/Forth-AI/work-ssot/issues/$PR_NUMBER/comments \
+  PREVIEW_URL=$(gh api repos/$REPO/issues/$PR_NUMBER/comments \
     --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null \
     | grep -oE 'https://[a-zA-Z0-9._-]+\.vercel\.app' | head -1)
   if [ -n "$PREVIEW_URL" ]; then break; fi
@@ -388,12 +405,12 @@ This phase runs **inline** (not as a sub-agent) since it's quick.
 
 2. **Wait for CI checks:**
    ```bash
-   gh pr checks $PR_NUMBER --repo Forth-AI/work-ssot --watch
+   gh pr checks $PR_NUMBER --repo $REPO --watch
    ```
 
 3. **Merge PR** (squash):
    ```bash
-   gh pr merge $PR_NUMBER --squash --delete-branch --repo Forth-AI/work-ssot
+   gh pr merge $PR_NUMBER --squash --delete-branch --repo $REPO
    ```
 
 4. **If merge fails:** Report error and stop. Do NOT proceed.
@@ -406,23 +423,23 @@ This phase runs **inline** (not as a sub-agent) since it's quick.
 6. **Close related GitHub Issues** (if not auto-closed):
    ```bash
    if [ -n "$ISSUE_NUM" ]; then
-     STATE=$(gh issue view $ISSUE_NUM --repo Forth-AI/work-ssot --json state --jq '.state')
+     STATE=$(gh issue view $ISSUE_NUM --repo $REPO --json state --jq '.state')
      if [ "$STATE" = "OPEN" ]; then
-       gh issue close $ISSUE_NUM --repo Forth-AI/work-ssot --comment "Shipped in PR #$PR_NUMBER" --reason completed
+       gh issue close $ISSUE_NUM --repo $REPO --comment "Shipped in PR #$PR_NUMBER" --reason completed
      fi
    fi
    ```
 
-7. **Move issue to Shipped on Project #9:**
+7. **Move issue to Shipped on Project #$PROJECT_NUM:**
    ```bash
    if [ -n "$ISSUE_NUM" ]; then
-     ITEM_ID=$(gh project item-list 9 --owner Forth-AI --format json | \
+     ITEM_ID=$(gh project item-list $PROJECT_NUM --owner $ORG --format json | \
        python3 -c "import json,sys; [print(i['id']) for i in json.load(sys.stdin)['items'] if i.get('content',{}).get('number')==$ISSUE_NUM]" 2>/dev/null)
      if [ -n "$ITEM_ID" ]; then
-       gh project item-edit --project-id PVT_kwDOCrEjbc4BTqhr \
+       gh project item-edit --project-id $PROJECT_ID \
          --id "$ITEM_ID" \
-         --field-id PVTSSF_lADOCrEjbc4BTqhrzhA3_Wc \
-         --single-select-option-id 98236657
+         --field-id $STATUS_FIELD_ID \
+         --single-select-option-id $STATUS_SHIPPED
      fi
    fi
    ```
@@ -464,7 +481,7 @@ After merging to main, the fix must also land on staging to prevent regression w
 
 1. **Get the merge commit SHA:**
    ```bash
-   MERGE_SHA=$(gh pr view $PR_NUMBER --repo Forth-AI/work-ssot --json mergeCommit --jq '.mergeCommit.oid')
+   MERGE_SHA=$(gh pr view $PR_NUMBER --repo $REPO --json mergeCommit --jq '.mergeCommit.oid')
    ```
 
 2. **Cherry-pick to staging:**
@@ -483,7 +500,7 @@ After merging to main, the fix must also land on staging to prevent regression w
    - If that fails, dispatch sme-brainstormer to analyze conflicts
    - Last resort: `git cherry-pick --abort` and create a manual backport issue:
      ```bash
-     gh issue create --repo Forth-AI/work-ssot \
+     gh issue create --repo $REPO \
        --title "[FIX] Backport hotfix PR #$PR_NUMBER to staging" \
        --label "size/S,area/backend" \
        --body "Hotfix PR #$PR_NUMBER was merged to main but failed to cherry-pick to staging. Manual backport required.
@@ -499,8 +516,8 @@ After merging to main, the fix must also land on staging to prevent regression w
 
 5. **Run regression tests on staging:**
    ```bash
-   cd work-agents && bun test
-   cd work-web && bun test
+   $BE_TEST_CMD
+   $FE_TEST_CMD
    ```
    - If tests fail: dispatch issue-fixer to resolve, commit, push
 

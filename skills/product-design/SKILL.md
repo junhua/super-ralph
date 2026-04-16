@@ -3,6 +3,8 @@ name: product-design
 description: "Create epics and user stories with Gherkin acceptance criteria, TDD tasks, FE/BE sub-issues, and pre-decided implementation contracts. Triggers when /super-ralph:design is invoked, or when the user mentions 'write epics', 'create user stories', 'product design', 'acceptance criteria', 'feature breakdown', 'e2e test scenarios', or wants to translate business goals into structured development artifacts. Produces implementation-ready stories that feed directly into /super-ralph:build-story without a separate plan step."
 ---
 
+> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md`.
+
 # Product Design -- Epics & Stories
 
 ## Overview
@@ -65,9 +67,9 @@ All design output must be optimized for AI consumption. Every sentence must be a
 | Tables over prose | "The slice includes a backend service, a database migration, and a frontend component..." | Vertical Slice table with Layer/File/Action columns |
 | Expected output | `Run: bun test` | `Run: bun test foo.test.ts` / `Expected: PASS -- 2 passed` |
 | Concrete values | "appropriate error message" | `"Vendor is required"` |
-| Pre-decided | "Choose between JWT and session auth" | "Use JWT Bearer. See `work-agents/src/middleware/auth.ts`." |
+| Pre-decided | "Choose between JWT and session auth" | "Use JWT Bearer. See `$BE_DIR/src/middleware/auth.ts`." |
 | No filler | "This is important because..." | `**Required for:** Task N+1` |
-| Exact paths | "in the schema file" | `work-agents/src/db/schema.ts` -- append to `// --- [Feature] ----` |
+| Exact paths | "in the schema file" | `$SCHEMA_FILE` -- append to `// --- [Feature] ----` |
 
 ### Template Order = TDD Loop
 
@@ -89,7 +91,7 @@ Every story with Size >= M must have these sections filled by the design agent a
 
 **Schema Changes:**
 ```typescript
-// work-agents/src/db/schema.ts -- append to // --- [Feature] ----
+// $SCHEMA_FILE -- append to // --- [Feature] ----
 export const tableName = pgTable("table_name", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
   orgId: text("org_id").notNull().references(() => organizations.id),
@@ -101,7 +103,7 @@ export const tableName = pgTable("table_name", {
 
 **Service Interface:**
 ```typescript
-// work-agents/src/services/feature-name.ts
+// $BE_SERVICES_DIR/feature-name.ts
 export async function getResources(db: DB, orgId: string): Promise<Resource[]>
 export async function createResource(db: DB, orgId: string, input: CreateInput): Promise<Resource>
 export async function updateResource(db: DB, orgId: string, id: string, input: UpdateInput): Promise<Resource>
@@ -127,7 +129,7 @@ interface ResourceListProps {
 
 **i18n Keys:**
 ```typescript
-// work-web/src/i18n/en.ts -- append to feature section
+// $I18N_BASE_FILE -- append to feature section
 featureKey: {
   title: "Resources",           // zh-CN: "..."
   create: "Create Resource",    // zh-CN: "..."
@@ -139,9 +141,9 @@ featureKey: {
 **Patterns to Follow:**
 ```
 // Reference existing implementations the dev should mirror
-Service pattern: work-agents/src/services/knowledge.ts
-Route pattern: work-agents/src/routes/knowledge.ts
-Page pattern: work-web/src/app/(app)/[orgId]/knowledge/page.tsx
+Service pattern: $BE_SERVICES_DIR/knowledge.ts
+Route pattern: $BE_ROUTES_DIR/knowledge.ts
+Page pattern: $FE_PAGES_DIR/knowledge/page.tsx
 ```
 
 ## Story Planner Sub-Agents (Phase 4)
@@ -150,13 +152,13 @@ During Phase 4 of the SADD process, the design agent dispatches sub-agents to fl
 
 ### Sub-Agent: Schema Planner
 
-**Receives:** Story user-story text, scope description, existing `schema.ts`
+**Receives:** Story user-story text, scope description, existing `$SCHEMA_FILE`
 **Produces:** Exact Drizzle table definitions, relations, indexes, enums
 **Rules:** Match existing naming conventions, use `createId()` for PKs, always include `orgId` for tenant isolation, add `createdAt`/`updatedAt`
 
 ### Sub-Agent: Service Planner
 
-**Receives:** Schema output, existing service files for pattern matching
+**Receives:** Schema output, existing service files in `$BE_SERVICES_DIR/` for pattern matching
 **Produces:** Function signatures with full TypeScript types, error types, validation rules
 **Rules:** Match existing service patterns (e.g., `knowledge.ts`), use `DB` type from drizzle, return typed results
 
@@ -304,7 +306,7 @@ When ambiguity arises during epic/story creation -- scope boundaries, persona pr
 
 1. Save epics to `docs/epics/YYYY-MM-DD-<slug>.md` (create the directory if needed)
 2. Create `[EPIC]` issue on GitHub with `[STORY]` sub-issues (each with `[BE]` and `[FE]` sub-issues)
-3. Add all issues to Project #9 board
+3. Add all issues to Project #$PROJECT_NUM board
 
 ## GitHub Issue Creation
 
@@ -327,7 +329,7 @@ gh issue create --title "[EPIC] <Epic title>" \
 ## Epic Document
 docs/epics/YYYY-MM-DD-<slug>.md
 EOF
-)" --repo Forth-AI/work-ssot
+)" --repo $REPO
 ```
 
 ### Creating [STORY] Issues with [BE]/[FE] Sub-Issues
@@ -350,7 +352,7 @@ gh issue create --title "[STORY] <Story title>" \
 ## Shared Contract
 <TypeScript types shared between FE and BE>
 EOF
-)" --repo Forth-AI/work-ssot
+)" --repo $REPO
 
 # 2. [BE] sub-issue
 gh issue create --title "[BE] <Story title> -- backend" \
@@ -363,8 +365,8 @@ Schema, service, route, route registration, tests
 
 ## TDD Tasks
 ### Task 1: Schema migration
-**Progress check:** `grep -q "tableName" work-agents/src/db/schema.ts`
-**Files:** Modify `work-agents/src/db/schema.ts`
+**Progress check:** `grep -q "tableName" $SCHEMA_FILE`
+**Files:** Modify `$SCHEMA_FILE`
 ...
 
 ### Task 2: Service layer
@@ -373,7 +375,7 @@ Schema, service, route, route registration, tests
 ### Task 3: Route + registration
 ...
 EOF
-)" --repo Forth-AI/work-ssot
+)" --repo $REPO
 
 # 3. [FE] sub-issue
 gh issue create --title "[FE] <Story title> -- frontend" \
@@ -400,7 +402,7 @@ Component, API client, i18n, mock data, page
 ### Task 3: Page integration
 ...
 EOF
-)" --repo Forth-AI/work-ssot
+)" --repo $REPO
 ```
 
 **Rules:**
@@ -408,7 +410,7 @@ EOF
 - [BE] and [FE] sub-issues reference their parent [STORY]
 - Size is set via Project #9 field, not labels
 - Sub-issues are NOT pre-assigned (devs self-assign)
-- Add all issues to Project #9: `gh project item-add 9 --owner Forth-AI --url <issue-url>`
+- Add all issues to Project #9: `gh project item-add $PROJECT_NUM --owner $ORG --url <issue-url>`
 
 ## References
 
