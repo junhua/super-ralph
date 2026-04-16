@@ -11,20 +11,29 @@ Display comprehensive help for the super-ralph plugin.
 ## Output the following help text:
 
 ```
-# Super-Ralph v0.7.0 — Autonomous Development Workflow
+# Super-Ralph v0.8.0 — Design-First Autonomous Development
 
-Super-ralph combines ralph-planning, ralph-loop, and superpowers into a unified
-fire-and-forget development workflow. Hit enter, walk away, come back to results.
+Super-ralph is a design-first autonomous development plugin. /design is the single
+entry point: it produces implementation-ready GitHub issues with embedded TDD tasks,
+Gherkin acceptance criteria, and FE/BE sub-issues for concurrent development.
 
 ## Philosophy
 
-Every decision point that would normally pause for human input is instead resolved
-by dispatching research + subject-matter-expert agents. This means:
-- No confirmation prompts during execution
-- No "which approach?" questions — AI agents decide autonomously
-- No manual PR review cycles — automated review -> fix -> re-review
-- No manual testing — browser verification against acceptance criteria
-- No manual releases — QA + Codex review + merge + tag, all automated
+1. Design-first: /design produces EVERYTHING — no separate /plan step needed.
+2. Every story exits /design implementation-ready for a low-reasoning model.
+3. FE and BE are built concurrently, integrated after PM sign-off.
+4. Every decision is pre-made by the design agent (Opus). Execution agents copy code.
+5. Documentation is AI-readable: tables over prose, decisions pre-made, concrete values.
+
+## Release Lifecycle
+
+  1. Requirements   — HoP confirms business requirements (human)
+  2. Planning        — PM uses /design to create EPIC + stories + sub-issues
+  3a. FE Dev         — Design Engineering iterates with PM/HoP
+  3b. BE Dev         — Backend/AI built concurrently
+  4. Integration    — FE + BE connected, e2e tests pass
+  5. Testing        — Playwright e2e + manual verification
+  6. Release        — /release seals and versions
 
 ## Branch Model
 
@@ -39,278 +48,193 @@ by dispatching research + subject-matter-expert agents. This means:
                                 │
                            hotfix branch ──PR──▶ main ──cherry-pick──▶ staging
 
-  - staging is the GitHub default branch. All feature PRs merge here.
-  - main is the production branch. Only /release promotes staging → main.
-  - Hotfix: /repair --hotfix branches from main, merges to main, backports to staging.
-  - Vercel auto-deploys both: staging → preview URL, main → production domains.
-
 ## Pipelines
 
-  Story:       build-story (plan → build → review-fix → verify → finalise)
-  Epic:        e2e (parallel build-story per story, then release)
-  Stepwise:    design → plan → build → review-fix → verify → finalise
-  Reactive:    repair (fix → review-fix → verify → finalise — full pipeline)
-  Hotfix:      repair --hotfix (fix → review-fix → verify → finalise on main → backport staging)
-  Release:     release (QA staging → Codex review → merge staging→main → tag)
-  Brainstorm:  brainstorm (research → CPO+CTO+CAIO analysis → recommendations)
+  Design-first:  design → build-story → review-fix → verify → finalise
+  Epic:          e2e (parallel build-story per story, then release)
+  Ad-hoc:        plan → build → review-fix → verify → finalise
+  Reactive:      repair → review-fix → verify → finalise
+  Hotfix:        repair --hotfix → review-fix → verify → finalise on main
+  Release:       release (QA → Codex review → merge staging→main → tag)
+  Quality:       review-design (validate all issues against quality gates)
+  Brainstorm:    brainstorm (research → CPO+CTO+CAIO → recommendations)
 
-## Sub-Agent Architecture
+## Sub-Agent Architecture (SADD)
 
-  Super-ralph orchestrates work through layered sub-agents:
+  /design uses Sub-Agent Driven Development (SADD):
 
-  Level 0 (orchestrator):  e2e / build-story — plans waves, monitors progress
-  Level 1 (phase agents):  plan / build / review-fix / verify — one per phase
-  Level 2 (worker agents): research / sme-brainstormer / code-reviewer /
-                           issue-fixer / browser-verifier — dispatched by phases
+  Phase 1 (Context):     Orchestrator reads docs + explores codebase
+  Phase 2 (Research):    3 parallel agents — research + 2 SME brainstormers
+  Phase 3 (Epic):        Orchestrator defines scope, SLICE decomposition
+  Phase 4 (Stories):     1 Sonnet agent per story (max 4 parallel)
+                         Each produces: STORY body + [BE] sub-issue + [FE] sub-issue
+  Phase 5 (Issues):      Create GitHub issues, set Project #9 fields
+  Phase 6 (Review):      /review-design validates all issues
 
-  Temp files (/tmp/super-ralph-*/) bridge state between phases so each
-  sub-agent gets a fresh context window without inheriting conversation bloat.
+  Temp files (/tmp/super-ralph-design-*/) bridge context between phases.
 
 ## Commands
 
-### /super-ralph:brainstorm <topic> [--scope product|module|feature] [--output PATH]
-
-  Autonomous brainstorming for product and feature improvements. Dispatches
-  parallel research agents (market/competitors, agent tech landscape, codebase
-  state), then runs CPO, CTO, and CAIO brainstormers in parallel. Synthesizes
-  into ranked, opinionated, actionable recommendations.
-
-  Three executive perspectives:
-    CPO: user empathy, product-market fit, usability, competitive positioning
-    CTO: technical feasibility, architecture, scalability, simplicity
-    CAIO: agent-native design, AI capabilities/limitations, trust, transparency
-
-  Outputs a brainstorm document to docs/brainstorms/YYYY-MM-DD-<slug>.md.
-
-  Example:
-    /super-ralph:brainstorm "Finance module usability"
-    /super-ralph:brainstorm "How should agent-assisted onboarding work?"
-    /super-ralph:brainstorm "Sales/CRM" --scope module
-    /super-ralph:brainstorm "What should we build next?" --scope product
-
 ### /super-ralph:design <feature-or-goal> [--output PATH]
 
-  Create epics and user stories with BDD acceptance criteria from product vision,
-  business goals, or user feedback. Creates [EPIC] GitHub issues with sub-issues,
-  attaches to the active milestone, and adds all to Project #9.
+  THE PRIMARY COMMAND. Creates implementation-ready epics with:
+  - [EPIC] issue with PM Summary, execution plan, dependency DAG
+  - [STORY] issues with Gherkin AC, shared contract, e2e test skeleton
+  - [BE] sub-issues with schema, service, route, TDD tasks
+  - [FE] sub-issues with component, mock data, i18n, PM checkpoints, TDD tasks
+
+  6-phase SADD flow: context → research → epic → story planning → issues → review.
+  Stories are immediately buildable — no /plan step needed.
 
   Example:
-    /super-ralph:design "Guided agent builder for non-technical users"
+    /super-ralph:design "Admin governance hardening — RBAC, user lifecycle, batch ops"
+    /super-ralph:design "Finance AP invoices and payment workflow"
 
-### /super-ralph:plan <feature> [--mode auto|standard|hybrid] [--output PATH] [--story EPIC#STORY]
+### /super-ralph:review-design <EPIC_NUMBER> [--fix] [--strict]
 
-  Create an implementation plan optimized for autonomous execution.
-  When --story is provided, generates e2e tests from acceptance criteria as Task 0.
+  Validate design quality before development starts. Checks 3 tiers of gates:
 
-  Example:
-    /super-ralph:plan "Add JWT authentication with login, refresh, and logout"
-    /super-ralph:plan --story docs/epics/gl.md#story-3
+  PM Gates:        Persona specificity, measurable outcomes, AC coverage, Gherkin format
+  Developer Gates: TDD tasks present, no pseudocode, exact paths, expected output
+  Cross-Issue:     Shared file conflicts, dependency DAG, AC-to-test coverage
 
-### /super-ralph:build <plan-path> [--max-iterations N] [--mode standard|hybrid]
+  Verdicts:
+    READY       — 0 Critical findings, all PM decisions resolved
+    CONDITIONAL — some stories can start, others blocked
+    BLOCKED     — Critical findings prevent any /build-story execution
 
-  Execute a plan autonomously via ralph-loop. Creates isolated worktree, validates
-  the plan, constructs execution prompt, and starts the loop.
-
-  Example:
-    /super-ralph:build docs/plans/2026-02-15-auth-api.md
-    /super-ralph:build docs/plans/2026-02-15-auth-api.md --max-iterations 30
-
-### /super-ralph:repair <#issue|description> [--screenshot PATH] [--url URL] [--hotfix] [--no-pipeline] [--skip-verify] [--skip-finalise]
-
-  Fast-track reactive fix with domain-aware tooling and full pipeline.
-  Detects domain (frontend, backend, security, devops, cloud-infra), loads
-  the right skills and review agents, then chains: fix → review-fix → verify
-  → finalise — all autonomously.
-
-  Domain detection:
-    - Label-based: reads area/frontend, area/backend, security labels
-    - File-path: classifies by work-web/, work-agents/, .github/, etc.
-    - Content: CSS/JSX = frontend, SQL/Hono = backend, JWT/CORS = security
-    - Routes domain-specific review agents (e.g., silent-failure-hunter for
-      backend, type-design-analyzer for frontend)
-
-  Hotfix mode (--hotfix):
-    Branches from main instead of staging. PR targets main for immediate
-    production fix. After merge, auto-backports to staging via cherry-pick.
-    Auto-detected from: priority/critical label, security label, production
-    URLs, or "production"/"prod" in the problem statement.
-
-    Regular: fix/dev/slug → staging → (wait for release)
-    Hotfix:  hotfix/dev/slug → main → cherry-pick to staging
-
-  Pipeline (default: enabled):
-    Phase 1: Fix (TDD, domain-specific patterns)
-    Phase 2: Review-fix (domain-selected agents, max 5 iterations)
-    Phase 3: Verify (browser, auto-skipped for pure backend/devops)
-    Phase 4: Finalise (merge PR, close issue, cleanup)
-    Phase 5: Backport (hotfix only — cherry-pick to staging)
+  --fix:    Auto-fix mechanical issues (missing i18n rows, placeholder removal)
+  --strict: Treat Important findings as Critical (zero-tolerance mode)
 
   Example:
-    /super-ralph:repair #42
-    /super-ralph:repair "Login button doesn't respond on mobile"
-    /super-ralph:repair --screenshot /path/to/bug.png
-    /super-ralph:repair #42 --hotfix
-    /super-ralph:repair "API returns 500 on empty body" --skip-verify
-    /super-ralph:repair #99 --no-pipeline
+    /super-ralph:review-design 479
+    /super-ralph:review-design 479 --fix
+    /super-ralph:review-design 479 --strict
 
-### /super-ralph:review-fix [--max-iterations N] [--aspects ASPECTS...] [--no-pr]
+### /super-ralph:build-story <STORY> [--skip-verify] [--skip-finalise]
 
-  Autonomously review, test, and fix code on a feature branch. Rebases to the
-  default branch each iteration, runs regression tests, reviews branch diff, fixes
-  Critical/Important issues, and repeats until clean. Creates a PR when done.
-
-  Review agents dispatched IN PARALLEL: code-reviewer, silent-failure-hunter,
-  pr-test-analyzer, comment-analyzer, type-design-analyzer, code-simplifier.
-
-  Example:
-    /super-ralph:review-fix                           # Loop until clean, create PR
-    /super-ralph:review-fix --max-iterations 5        # Cap at 5 iterations
-    /super-ralph:review-fix --aspects errors tests    # Only specific aspects
-
-### /super-ralph:verify [--pr NUMBER] [--url URL] [--criteria PATH]
-
-  Browser-verify a PR's Vercel preview deployment against acceptance criteria
-  using claude-in-chrome. Walks through Given/When/Then criteria, captures GIF
-  evidence, checks console errors and network failures.
-
-  Example:
-    /super-ralph:verify                               # Auto-detect PR and criteria
-    /super-ralph:verify --pr 45                       # Specific PR
-    /super-ralph:verify --url http://localhost:3000    # Local dev server
-
-### /super-ralph:finalise [--pr NUMBER] [--plan PATH] [--story EPIC#STORY] [--no-cleanup]
-
-  Merge a review-clean PR into staging and close the development loop. Updates
-  plan tasks, epic stories, roadmap. Cleans up worktrees and branches.
-
-  Example:
-    /super-ralph:finalise                             # Auto-detect everything
-    /super-ralph:finalise --pr 42                     # Specific PR
-
-### /super-ralph:build-story <STORY> [--skip-verify] [--skip-finalise] [--mode auto|standard|hybrid]
-
-  Execute a single story end-to-end in one fire-and-forget command:
-  plan → build → review-fix → verify → finalise.
-
-  Each phase runs as a dedicated sub-agent with fresh context. Temp files at
-  /tmp/super-ralph-story-$ID/ bridge state between phases.
-
-  Idempotent — re-run after failure to resume from the last completed phase.
-
-  Internal parallelism per phase:
-    Plan:       research + 2-3 SME brainstormers in parallel
-    Build:      up to 3 independent tasks in parallel (hybrid mode)
-    Review-fix: 6 review agents dispatched simultaneously
-    Verify:     sequential (browser is single-threaded)
-    Finalise:   sequential (merge safety)
+  Execute a story end-to-end: build → review-fix → verify → finalise.
+  Skips plan phase when TDD tasks are embedded in the issue body (from /design).
+  Auto-detects [FE] and [BE] sub-issues for concurrent execution.
 
   Input formats:
     /super-ralph:build-story #42                        # GitHub issue number
     /super-ralph:build-story docs/epics/gl.md#story-3   # Epic story reference
     /super-ralph:build-story "Add JWT auth endpoints"   # Description string
 
-  Options:
-    /super-ralph:build-story #42 --skip-verify          # Skip browser verification
-    /super-ralph:build-story #42 --skip-finalise        # Stop at PR, don't merge
-    /super-ralph:build-story #42 --mode hybrid          # Force hybrid execution
+### /super-ralph:plan <feature> [--mode auto|standard|hybrid] [--story EPIC#STORY]
 
-### /super-ralph:e2e EPIC_NUMBER [--milestone NAME] [--max-parallel N] [--skip-release] [--skip-verify]
+  Create implementation plans for AD-HOC work only. For epic-driven features,
+  use /design instead.
 
-  Execute an entire epic end-to-end. Loads the epic from GitHub, plans story
-  execution waves (maximizing parallelism via SME dependency analysis), dispatches
-  build-story executors per story, finalises PRs sequentially into staging, then
-  runs release to promote staging → main.
-
-  Wave execution model:
-    Wave 1:  [Story A, Story B]   ← independent, run in parallel
-    Wave 2:  [Story C]            ← depends on Story A, runs after Wave 1
-    Wave 3:  [Story D, Story E]   ← depend on Wave 2, run in parallel
-    Finalise: sequential per wave (merge safety for shared files)
-    Release:  after all waves complete
-
-  Uses temp files (/tmp/super-ralph-e2e-N/) as context bridges.
-  Idempotent — re-run after failure to resume where it left off.
+  Use cases:
+    - [FIX] hotfixes and bug fixes
+    - [CHORE] infrastructure, DevOps, dependency upgrades
+    - Exploratory spikes and prototypes
+    - Small ad-hoc improvements by tech lead
 
   Example:
-    /super-ralph:e2e 50                               # Execute Epic #50
-    /super-ralph:e2e 50 --max-parallel 4              # 4 stories in parallel
-    /super-ralph:e2e 50 --skip-release                # Don't promote to production
-    /super-ralph:e2e 50 --skip-verify                 # Skip browser verification
+    /super-ralph:plan "Fix null pointer in policy cascade"
+    /super-ralph:plan "Upgrade Drizzle ORM to 0.41"
 
-### /super-ralph:release [--milestone NAME] [--tag VERSION] [--no-verify] [--no-codex]
+### /super-ralph:brainstorm <topic> [--scope product|module|feature]
 
-  Promote staging to production. The release promotion gate:
-
-    1. Pre-flight: all issues closed, staging ahead of main, tag unused
-    2. QA on staging: browser smoke, regression tests, contracts, acceptance audit
-    3. Create staging → main PR with release notes
-    4. Codex CLI review + fix loop (second-AI safety net)
-    5. Merge to main (merge commit, preserves feature history)
-    6. Seal: tag, close milestone, GitHub Release
-    7. Sync: fast-forward staging to main
+  Autonomous brainstorming with CPO/CTO/CAIO perspectives.
+  Outputs ranked recommendations to docs/brainstorms/.
 
   Example:
-    /super-ralph:release                              # Auto-detect milestone
-    /super-ralph:release --milestone "v1.2"           # Specific milestone
-    /super-ralph:release --no-verify                  # Emergency patch (skip QA)
-    /super-ralph:release --no-codex                   # Skip Codex review
+    /super-ralph:brainstorm "Finance module usability"
+    /super-ralph:brainstorm "What should we build next?" --scope product
+
+### /super-ralph:build <plan-path> [--max-iterations N]
+
+  Execute a plan autonomously via ralph-loop.
+
+### /super-ralph:repair <#issue|description> [--hotfix] [--skip-verify]
+
+  Domain-aware reactive fix with full pipeline.
+  --hotfix branches from main for immediate production fixes.
+
+### /super-ralph:review-fix [--max-iterations N] [--no-pr]
+
+  Autonomously review, test, and fix code on a feature branch.
+  6 review agents dispatched in parallel.
+
+### /super-ralph:verify [--pr NUMBER] [--url URL]
+
+  Browser-verify a PR against acceptance criteria using claude-in-chrome.
+
+### /super-ralph:finalise [--pr NUMBER]
+
+  Merge PR into staging, close issues, cleanup worktrees.
+
+### /super-ralph:e2e EPIC_NUMBER [--max-parallel N] [--skip-release]
+
+  Execute an entire epic end-to-end with wave-based parallelism.
+
+### /super-ralph:release [--milestone NAME] [--tag VERSION]
+
+  Promote staging → main with QA + Codex review gate.
 
 ### /super-ralph:help
 
   Show this help text.
 
+## Issue Taxonomy
+
+  [EPIC]  — Feature epic, container for stories. Has PM Summary + execution plan.
+  [STORY] — User story with Gherkin AC + shared contract. Has [FE] + [BE] subs.
+  [FE]    — Frontend sub-issue: component, mock data, i18n, PM checkpoints, TDD tasks.
+  [BE]    — Backend sub-issue: schema, service, route, TDD tasks.
+  [FIX]   — Bug fix (use /plan or /repair).
+  [CHORE] — Technical work (use /plan).
+  [QA]    — Test verification task.
+
+## SLICE Decomposition (used by /design)
+
+  Before writing any story, /design applies SLICE:
+    S — System boundary: BE+FE in one user action = 1 story
+    L — Lifecycle: each CRUD operation = candidate story
+    I — Interaction: list/detail/form/action = separate stories
+    C — Configuration vs operation: admin ≠ operator
+    E — Error surface: >3 error modes = split error story
+
+  Target: S/M size. XL = must split. Aim 8-15 stories per epic.
+
+## FE/BE Concurrent Development
+
+  Each [STORY] produces 3 GitHub issues:
+
+  [STORY] — Shared contract (TS types) + Gherkin AC + e2e skeleton
+    ├── [BE] — Schema + service + route + TDD tasks
+    └── [FE] — Component + mock data + i18n + TDD tasks + PM checkpoints
+
+  FE iterates with PM/HoP using mock data (CP1→CP2→CP3→CP4 sign-off).
+  BE is built concurrently.
+  Integration swaps mocks for real API calls after both are ready.
+
+## AI-Readable Documentation Standard
+
+  | Rule                    | Bad                          | Good                              |
+  |-------------------------|------------------------------|-----------------------------------|
+  | Tables over prose       | "The slice includes..."      | Vertical Slice table              |
+  | Expected output         | Run: bun test                | Run: bun test / Expected: PASS    |
+  | Concrete values         | "appropriate error"          | "Vendor is required"              |
+  | Decisions pre-made      | "Choose between..."          | "Use JWT. See auth.ts."           |
+  | No filler               | "This is important..."       | Required for: Task N+1            |
+
+## Gherkin Format (required for all stories)
+
+  Feature → describe()
+  Background → beforeEach()
+  Scenario → test()
+  Scenario Outline + Examples → test.each()
+
+  Category labels: [HAPPY], [EDGE], [SECURITY], [PERF]
+  Max 6 scenarios per story. Concrete data everywhere.
+
 ## Prerequisites
 
-These plugins/tools must be installed:
-- ralph-loop — provides the while-true loop engine
-- superpowers — provides TDD, debugging, verification skills
-- pr-review-toolkit — provides review agents for review-fix
-- claude-in-chrome — provides browser automation for verify/release
-- codex CLI (optional) — provides AI code review for release promotion
-
-## Execution Modes
-
-### Standard Mode
-  Claude executes all tasks directly in the ralph-loop, invoking superpowers
-  skills (TDD, debugging, verification) inline. Best for <6 tightly-coupled tasks.
-
-### Hybrid Mode
-  Claude orchestrates by dispatching fresh subagents per task, with spec compliance
-  and code quality review stages. Best for 6+ independent, substantial tasks.
-
-### Auto Mode (default for /plan and /build-story)
-  Dispatches SME agents to analyze task characteristics and picks the best mode.
-
-## How Decisions Are Made
-
-When ambiguity arises (architecture, approach, error resolution, etc.):
-1. research-agent searches web + codebase for references
-2. 1-3 sme-brainstormer agents analyze options from different angles
-3. Most rational option is chosen based on evidence + expert consensus
-4. Execution continues. No waiting.
-
-## Severity Rules (for review-fix)
-
-- Critical (blocks): Bugs, security issues, data loss, broken functionality, NEW test failures
-- Important (blocks): Architecture problems, missing error handling, test gaps
-- Minor (logged): Code style, optimizations — does NOT block completion
-- Suggestions (logged): Documentation, nice-to-haves — does NOT block completion
-
-## Verification Layers
-
-  Layer 1 (review-fix):  Code quality — static analysis, unit/integration tests
-  Layer 2 (verify):      Running app — browser verification against acceptance criteria
-  Layer 3 (release QA):  Version seal — smoke tests, contracts, acceptance audit
-  Layer 4 (release PR):  Codex review — second-AI review of staging→main diff
-
-## Temp File Protocol
-
-  Sub-agents communicate via structured temp files, not conversation context.
-  Each phase writes a result file; the next phase reads only what it needs.
-
-  /tmp/super-ralph-story-$ID/       # build-story
-  /tmp/super-ralph-e2e-$EPIC/       # e2e (per-story subdirectories)
-
-  Files use key: value format for easy parsing by downstream phases.
-  Progress files enable idempotent resume after failures.
+  - claude-in-chrome — browser automation for verify/release
+  - codex CLI (optional) — AI code review for release promotion
 ```
