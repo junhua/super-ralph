@@ -292,11 +292,15 @@ Task tool:
 
 **Goal:** Execute the plan in an isolated worktree using TDD.
 
+**Model selection:**
+- If plan-result.md has `mode: embedded` (TDD tasks from /design): use **sonnet** — instructions are implementation-ready, agent copies and executes
+- If plan-result.md has `mode: standard` or `mode: hybrid` (from /plan): use **opus** — agent needs to reason through implementation details
+
 **Dispatch sub-agent:**
 
 ```
 Task tool:
-  model: opus
+  model: [sonnet if mode=embedded, opus otherwise — see model selection above]
   max_turns: $BUILD_TURNS  # standard: task_count * 8, hybrid: task_count * 12
   description: "Build Story $STORY_ID: $STORY_TITLE"
   prompt: |

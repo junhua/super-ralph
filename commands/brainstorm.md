@@ -94,21 +94,21 @@ Proceed IMMEDIATELY to Step 4.
 
 ### Step 4: Dispatch Research Agents
 
-Launch 3 research agents in parallel (Task tool, model: haiku):
+Launch 3 research agents in parallel:
 
-1. **Market & Competitor Research Agent:**
+1. **Market & Competitor Research Agent** (model: haiku, max_turns: 15):
    - Search for how leading enterprise tools (Salesforce, SAP, NetSuite, HubSpot, Rippling, Ramp) handle this area
    - Search for modern/AI-native competitors doing this differently
    - Identify proven UX patterns and differentiation opportunities
    - Return: competitor approaches, UX patterns, market gaps
 
-2. **Agent & AI Technology Research Agent:**
+2. **Agent & AI Technology Research Agent** (model: haiku, max_turns: 15):
    - Search for latest LLM/agent capabilities relevant to the topic (tool use, multi-agent, planning, memory)
    - Search for known limitations and failure modes in this domain
    - Search for real-world AI enterprise applications in this area
    - Return: what's possible now, what's coming, what's unreliable, examples
 
-3. **Codebase & Product State Analysis Agent:**
+3. **Codebase & Product State Analysis Agent** (model: sonnet, max_turns: 20):
    - Analyze the current implementation state from the code gathered in Step 3
    - Map the existing user flows (page structure, components, API endpoints)
    - Identify gaps between what's built and what the vision/roadmap promises

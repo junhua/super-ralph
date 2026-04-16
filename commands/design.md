@@ -220,11 +220,16 @@ For each story defined in Step 7, dispatch a story-planner sub-agent. Run up to 
 
 **Orchestrator pre-work per story:** Before dispatching each agent, identify 3-5 relevant existing file paths by Grep/Glob for related code (routes, services, components, tests).
 
+**Model selection per story:**
+- Size S or M → `sonnet` (well-defined scope, few TDD tasks, pattern-following)
+- Size L → `opus` (complex schema, state machines, 6+ TDD tasks, architectural decisions)
+- Size XL → must be split before dispatching (SLICE decomposition failure if reached)
+
 **Each story-planner agent:**
 
 ```
 Task tool:
-  model: sonnet
+  model: [sonnet for S/M, opus for L — see model selection above]
   max_turns: 40
   description: "Plan Story N: [Title]"
   prompt: |
