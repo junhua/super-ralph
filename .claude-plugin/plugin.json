@@ -1,7 +1,7 @@
 {
   "name": "super-ralph",
-  "version": "0.7.0",
-  "description": "Unified autonomous development workflow. Design, plan, build, repair, verify, release, and e2e epic execution — all fire-and-forget. Domain-aware repair with hotfix flow.",
+  "version": "0.8.0",
+  "description": "Design-first autonomous development. 6-phase SADD: design (with TDD tasks + FE/BE sub-issues + Gherkin AC) → build → review → verify → release. Includes /review-design quality gate.",
   "author": {
     "name": "junhua",
     "email": "junhua.viva@gmail.com"
