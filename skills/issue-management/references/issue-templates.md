@@ -307,7 +307,32 @@ export async function deleteResource(db: DB, orgId: string, id: string): Promise
 | PUT | `/api/resources/:id` | Bearer | body: `UpdateInput` | `Resource` | 400, 401, 403, 404 |
 | DELETE | `/api/resources/:id` | Bearer | — | `204` | 401, 403, 404 |
 
+## Test Plan
+
+> Required. Describes the layered test strategy for this BE sub-issue. Drives the TDD Tasks below.
+
+| Layer | Scope | Tool | File |
+|-------|-------|------|------|
+| Unit | Service functions (pure business logic, no DB) | `bun:test` | `$BE_SERVICES_DIR/__tests__/[feature].test.ts` |
+| Integration | Route handlers + DB + auth middleware | `bun:test` + testcontainers or real test DB | `$BE_ROUTES_DIR/__tests__/[feature].integration.test.ts` |
+| Contract | Zod schema validates request/response bodies | `bun:test` | inline in route test |
+
+### Coverage Requirements
+- Every service function has at least one unit test (happy + 1 error path)
+- Every route handler has at least one integration test covering: 200 success, 400 validation, 401 unauthenticated, 403 forbidden, 404 not found (where applicable)
+- Every Gherkin `[SECURITY]` scenario from the parent [STORY] maps to an integration test
+
 ## TDD Tasks
+
+> **MANDATORY.** Every task below MUST include:
+> - A `**Progress check:**` shell command that returns exit 0 when the task is done
+> - Complete test code (copy-pasteable, no `// TODO`, no `...`, no `implement X here`)
+> - Exact run command (`$RUNTIME test ...`)
+> - Expected output on both FAIL and PASS runs (counts, pass/fail labels)
+> - Exact implementation code (no placeholders)
+> - Git commit command with commit message
+>
+> A reviewer will BLOCK this issue if any of the above is missing.
 
 ### Task 0: E2E Tests (outer RED)
 **Progress check:** `test -f $BE_DIR/tests/e2e/[slug].test.ts`
@@ -373,7 +398,9 @@ Commit: `git commit -m "feat: [feature] e2e green"`
 ## Completion Criteria
 - [ ] `$BE_TEST_CMD` exits 0
 - [ ] `$RUNTIME run build` exits 0
-- [ ] All route contracts return correct status codes
+- [ ] All route contracts return documented status codes (asserted in integration tests)
+- [ ] Every Gherkin [SECURITY] scenario in parent [STORY] has a corresponding integration test
+- [ ] PR body includes `Closes #[BE_NUMBER]`
 - [ ] [feature-specific check]
 ````
 
