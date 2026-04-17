@@ -122,37 +122,45 @@ Use for user-facing features that belong to an [EPIC]. Written from a persona's 
 **So that** [measurable business value].
 **Priority:** P0/P1/P2 | **Size:** S/M/L
 
+## User Journey (narrative)
+
+> Required. 3-5 sentences describing the happy path from the persona's POV: trigger → steps → outcome. Reference concrete UI elements and data. This is the "demo script" for the story.
+
+[Admin opens Settings → General tab, sees three cards (Workspace, Business Hours, Cost Benchmarks) with current values. Admin changes timezone from UTC to Asia/Singapore in the Workspace card, clicks Save, sees a green "Saved" toast. Admin reloads the page; timezone is still Asia/Singapore. Downstream: Cost Savings Tracker now uses Singapore hours for ROI calculations.]
+
 ## Acceptance Criteria (Gherkin)
+
+> Required. Minimum 3 scenarios: at least one `[HAPPY]`, one `[EDGE]`, one `[SECURITY]`. Use concrete data. Every scenario must be automatable as an e2e test.
+
 ```gherkin
 Feature: [Story title]
   Background:
-    Given I am logged in as [persona]
+    Given I am logged in as [persona] with tenantId "tenant-123"
+    And [workspace/data precondition]
 
   Scenario: [HAPPY] Primary flow
     Given [precondition with specific data]
-    When [specific action]
+    When [single user action]
     Then [verifiable outcome]
+    And [additional assertion]
 
   Scenario: [EDGE] Boundary condition
-    Given [boundary condition]
+    Given [boundary precondition — empty state, max limit, duplicate]
     When [action at boundary]
-    Then [graceful handling]
+    Then [graceful handling with specific message]
 
   Scenario: [SECURITY] Unauthorized access
-    Given [invalid state or unauthorized user]
-    When [action]
-    Then [specific error response]
+    Given I am logged in as [unauthorized persona]
+    When [action requiring higher permission]
+    Then I see: "You don't have permission to perform this action"
+    And the resource is unchanged
 ```
 
 ## Shared Contract
 ```typescript
-// Shared types used by both FE and BE
+// Shared types used by FE, BE, and INT
 export type ResourceName = {
   id: string;
-  // ... fields
-};
-
-export type CreateResourceInput = {
   // ... fields
 };
 ```
@@ -160,6 +168,7 @@ export type CreateResourceInput = {
 ## Sub-Issues
 - [BE] #N — Backend implementation
 - [FE] #N — Frontend implementation
+- [INT] #N — Integration, E2E, and staging verification
 
 ## E2E Test Skeleton
 ```typescript
@@ -170,11 +179,8 @@ describe("[Story title]", () => {
     // assert
   });
 
-  test("[EDGE] boundary condition", async () => {
-    // arrange
-    // act
-    // assert
-  });
+  test("[EDGE] boundary condition", async () => { ... });
+  test("[SECURITY] unauthorized access", async () => { ... });
 });
 ```
 ````
@@ -189,6 +195,9 @@ describe("[Story title]", () => {
 **I want** to view a kanban board of my team's pipeline,
 **So that** I can see deal distribution across stages at a glance.
 **Priority:** P0 | **Size:** M
+
+## User Journey (narrative)
+Sales manager opens the Pipeline page and sees three columns (Qualification, Proposal, Negotiation) each populated with deal cards showing title, value, and a `[⋮]` action menu. She filters by stage "Proposal", sees only those deals, and clicks a deal card to open the detail drawer. When the pipeline is empty, she sees a "Create your first deal" prompt with a call-to-action button.
 
 ## Acceptance Criteria (Gherkin)
 ```gherkin
@@ -239,6 +248,7 @@ export type Deal = {
 ## Sub-Issues
 - [BE] #242 — Backend: pipeline API endpoints
 - [FE] #243 — Frontend: kanban board UI
+- [INT] #244 — Integration: real data, e2e, staging verify
 
 ## E2E Test Skeleton
 ```typescript

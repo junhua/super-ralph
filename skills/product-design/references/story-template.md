@@ -20,11 +20,17 @@ Use this template for individual user stories within an epic. Each story is inde
 **Depends on:** Story N-1 | None
 ```
 
+## User Journey (narrative)
+
+> Required. 3-5 sentences walking through the happy path from the persona's POV. Reference concrete UI elements. This is the demo script.
+
 ## Acceptance Criteria (Gherkin Format)
 
 Write every acceptance criterion as a Gherkin scenario. Each scenario maps 1:1 to a test case. Use category labels on every scenario.
 
 ### Gherkin Structure
+
+> **Required:** minimum 3 scenarios per story — at least one `[HAPPY]`, one `[EDGE]`, one `[SECURITY]`. Every scenario is automatable.
 
 ```gherkin
 Feature: [Story title]
