@@ -645,9 +645,105 @@ Task tool:
     - [ ] Mock data: `$FE_DIR/src/lib/mock/[feature].ts` exists
     ```
 
+    ### Output 4: [INT] Sub-Issue Body
+
+    Write the full GitHub issue body for an [INT] sub-issue:
+
+    ```markdown
+    **Parent:** #STORY_NUMBER
+    **Depends on:** [BE] #BE_NUMBER (merged), [FE] #FE_NUMBER (merged)
+
+    ## Scope
+    Integration and verification: swap FE mocks for real API, run Gherkin scenarios as e2e tests, verify staging preview.
+
+    ## Gherkin User Journey (from parent [STORY])
+    See parent #STORY_NUMBER — Acceptance Criteria (Gherkin) section. The 3+ scenarios in that section are the exact user journeys to verify here.
+
+    ## Integration Tasks
+
+    ### Task 0: Mock Swap
+    **Progress check:** `! grep -rn "mock[Feature]" $FE_PAGES_DIR/[feature]`
+    **Files:** Modify $FE_PAGES_DIR/[feature]/page.tsx; delete $FE_DIR/src/lib/mock/[feature].ts
+
+    Step 1: Replace mock import with API client call. EXACT code diff:
+    ```diff
+    - import { mock[Feature]List } from "@/lib/mock/[feature]";
+    + import { [feature]Api } from "@/lib/api/[feature]";
+    ```
+    Step 2: Replace usage inside component:
+    ```diff
+    - const data = mock[Feature]List;
+    + const { data } = useQuery({ queryKey: ["[feature]"], queryFn: [feature]Api.list });
+    ```
+    Step 3: Delete mock file:
+    ```bash
+    rm $FE_DIR/src/lib/mock/[feature].ts
+    ```
+    Step 4: Run typecheck — Expected: PASS
+    ```bash
+    cd $FE_DIR && $RUNTIME run typecheck
+    ```
+    Step 5: Commit
+    ```bash
+    git add $FE_PAGES_DIR/[feature]/page.tsx
+    git rm $FE_DIR/src/lib/mock/[feature].ts
+    git commit -m "chore: swap [feature] mocks for real API"
+    ```
+
+    ### Task 1: Gherkin Scenarios as E2E Tests
+    **Progress check:** `grep -c "test(" tests/e2e/[story-slug].test.ts` — Expected: ≥3 (one per Gherkin scenario)
+    **File:** Modify tests/e2e/[story-slug].test.ts
+
+    For each scenario in the parent [STORY] Gherkin, implement a runnable test. EXACT code for each:
+
+    ```typescript
+    test("[HAPPY] [scenario name from Gherkin]", async () => {
+      // Given: [precondition from Gherkin]
+      // ... concrete setup code
+      // When: [action from Gherkin]
+      // ... concrete action code
+      // Then: [assertion from Gherkin]
+      // ... concrete assertion with specific values
+    });
+
+    test("[EDGE] [scenario name]", async () => { /* exact code */ });
+
+    test("[SECURITY] [scenario name]", async () => { /* exact code */ });
+    ```
+
+    Run: `$RUNTIME test tests/e2e/[story-slug].test.ts`
+    Expected (before implementation): some FAIL
+    Expected (after): PASS — 3+ passed
+
+    Commit: `git commit -m "test: [feature] gherkin scenarios as runnable e2e"`
+
+    ## Verification Tasks
+
+    ### Task 2: `/super-ralph:verify` Against Staging Preview
+    **Progress check:** Verification report at `.claude/runs/verify-[story-slug]/report.md`
+    Step 1: Identify preview URL (Vercel/staging) from the merged PRs of [BE] and [FE]
+    Step 2: Invoke verifier:
+    ```bash
+    /super-ralph:verify <preview-url> --story #STORY_NUMBER
+    ```
+    Expected: verifier returns GREEN for all 3+ Gherkin scenarios
+    If RED: open `[FIX]` issue, link here, block integration PR.
+
+    ### Task 3: Integration PR
+    Push branch, open PR with:
+    - Title: `int: [feature] integration and e2e`
+    - Body: `Closes #INT_NUMBER\n\nCloses #STORY_NUMBER (when all sub-issues merge)\n\n## Verification Report\n[paste summary from verifier]`
+
+    ## Completion Criteria
+    - [ ] Mock file deleted
+    - [ ] `$RUNTIME test tests/e2e/[story-slug].test.ts` — 0 failures, ≥3 scenarios passing
+    - [ ] `/super-ralph:verify` report is GREEN
+    - [ ] Integration PR merged to main/dev
+    ```
+
     ## File Output
 
-    Write all three outputs to a run-state file:
+    Write all four outputs to a run-state file:
     `$(git rev-parse --show-toplevel)/.claude/runs/design-[EPIC_SLUG]/story-N-plan.md`
     (fallback: `/tmp/super-ralph-design-[EPIC_SLUG]/story-N-plan.md` if .claude not writable)
 
@@ -663,6 +759,9 @@ Task tool:
 
     ## FE Sub-Issue Body
     [Output 3]
+
+    ## INT Sub-Issue Body
+    [Output 4]
     ```
 
     NEVER ask for human input. Use Read/Grep/Glob to explore files.
@@ -705,6 +804,7 @@ Calculate total effort and optimal execution order:
    - Wave 2: P0 stories dependent on Wave 1 + independent P1 stories
    - Wave 3: Remaining P1 + P2 stories
 4. Identify the critical path (longest chain of dependent stories)
+4a. Within each story, `[INT]` is always ONE wave after its parent's `[BE]` + `[FE]` (can't start until both merge).
 5. Calculate parallel speedup (how many stories can run concurrently per wave)
 
 ---
@@ -752,10 +852,10 @@ Calculate total effort and optimal execution order:
    ## Execution Plan
 
    ### AI-Hours Estimate
-   | Story | BE | FE | Total |
-   |-------|-----|-----|-------|
-   | Story 1 | 2h | 1.5h | 3.5h |
-   | **Total** | **Xh** | **Yh** | **Zh** |
+   | Story | BE | FE | INT | Total |
+   |-------|-----|-----|-----|-------|
+   | Story 1 | 2h | 1.5h | 1h | 4.5h |
+   | **Total** | **Xh** | **Yh** | **Zh** | **Wh** |
 
    ### Dependency Graph
    ```
@@ -773,9 +873,11 @@ Calculate total effort and optimal execution order:
    - [ ] #?? [STORY] Story 1
      - [ ] #?? [BE] Story 1 — Backend
      - [ ] #?? [FE] Story 1 — Frontend
+     - [ ] #?? [INT] Story 1 — Integration & E2E
    - [ ] #?? [STORY] Story 2
      - [ ] #?? [BE] Story 2 — Backend
      - [ ] #?? [FE] Story 2 — Frontend
+     - [ ] #?? [INT] Story 2 — Integration & E2E
 
    ## Epic Document
    docs/epics/YYYY-MM-DD-<slug>.md
@@ -789,9 +891,9 @@ Calculate total effort and optimal execution order:
    # Set Type=epic, Size, Priority via project field IDs
    ```
 
-#### Step 13: Create Story + Sub-Issues (3 issues per story)
+#### Step 13: Create Story + Sub-Issues (4 issues per story)
 
-For each story, create three issues in order:
+For each story, create four issues in order:
 
 **a. [STORY] issue:**
 ```bash
@@ -834,6 +936,21 @@ EOF
 ```
 
 Add to Project #$PROJECT_NUM, set Type=chore, Size, Priority.
+
+**d. [INT] sub-issue:**
+```bash
+gh issue create --title "[INT] <Story title> — Integration & E2E" \
+  --label "area/fullstack,integration" \
+  --body "$(cat <<'EOF'
+**Parent:** #<story-number>
+**Depends on:** [BE] #<be-number>, [FE] #<fe-number>
+
+[INT SUB-ISSUE BODY FROM STEP 9, OUTPUT 4]
+EOF
+)" --repo $REPO
+```
+
+Add to Project #$PROJECT_NUM, set Type=story, Size=S (typically), Priority inherited from STORY.
 
 #### Step 14: Update EPIC Body with Linked Issue Numbers
 

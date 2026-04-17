@@ -122,37 +122,45 @@ Use for user-facing features that belong to an [EPIC]. Written from a persona's 
 **So that** [measurable business value].
 **Priority:** P0/P1/P2 | **Size:** S/M/L
 
+## User Journey (narrative)
+
+> Required. 3-5 sentences describing the happy path from the persona's POV: trigger → steps → outcome. Reference concrete UI elements and data. This is the "demo script" for the story.
+
+[Admin opens Settings → General tab, sees three cards (Workspace, Business Hours, Cost Benchmarks) with current values. Admin changes timezone from UTC to Asia/Singapore in the Workspace card, clicks Save, sees a green "Saved" toast. Admin reloads the page; timezone is still Asia/Singapore. Downstream: Cost Savings Tracker now uses Singapore hours for ROI calculations.]
+
 ## Acceptance Criteria (Gherkin)
+
+> Required. Minimum 3 scenarios: at least one `[HAPPY]`, one `[EDGE]`, one `[SECURITY]`. Use concrete data. Every scenario must be automatable as an e2e test.
+
 ```gherkin
 Feature: [Story title]
   Background:
-    Given I am logged in as [persona]
+    Given I am logged in as [persona] with tenantId "tenant-123"
+    And [workspace/data precondition]
 
   Scenario: [HAPPY] Primary flow
     Given [precondition with specific data]
-    When [specific action]
+    When [single user action]
     Then [verifiable outcome]
+    And [additional assertion]
 
   Scenario: [EDGE] Boundary condition
-    Given [boundary condition]
+    Given [boundary precondition — empty state, max limit, duplicate]
     When [action at boundary]
-    Then [graceful handling]
+    Then [graceful handling with specific message]
 
   Scenario: [SECURITY] Unauthorized access
-    Given [invalid state or unauthorized user]
-    When [action]
-    Then [specific error response]
+    Given I am logged in as [unauthorized persona]
+    When [action requiring higher permission]
+    Then I see: "You don't have permission to perform this action"
+    And the resource is unchanged
 ```
 
 ## Shared Contract
 ```typescript
-// Shared types used by both FE and BE
+// Shared types used by FE, BE, and INT
 export type ResourceName = {
   id: string;
-  // ... fields
-};
-
-export type CreateResourceInput = {
   // ... fields
 };
 ```
@@ -160,6 +168,7 @@ export type CreateResourceInput = {
 ## Sub-Issues
 - [BE] #N — Backend implementation
 - [FE] #N — Frontend implementation
+- [INT] #N — Integration, E2E, and staging verification
 
 ## E2E Test Skeleton
 ```typescript
@@ -170,11 +179,8 @@ describe("[Story title]", () => {
     // assert
   });
 
-  test("[EDGE] boundary condition", async () => {
-    // arrange
-    // act
-    // assert
-  });
+  test("[EDGE] boundary condition", async () => { ... });
+  test("[SECURITY] unauthorized access", async () => { ... });
 });
 ```
 ````
@@ -189,6 +195,9 @@ describe("[Story title]", () => {
 **I want** to view a kanban board of my team's pipeline,
 **So that** I can see deal distribution across stages at a glance.
 **Priority:** P0 | **Size:** M
+
+## User Journey (narrative)
+Sales manager opens the Pipeline page and sees three columns (Qualification, Proposal, Negotiation) each populated with deal cards showing title, value, and a `[⋮]` action menu. She filters by stage "Proposal", sees only those deals, and clicks a deal card to open the detail drawer. When the pipeline is empty, she sees a "Create your first deal" prompt with a call-to-action button.
 
 ## Acceptance Criteria (Gherkin)
 ```gherkin
@@ -239,6 +248,7 @@ export type Deal = {
 ## Sub-Issues
 - [BE] #242 — Backend: pipeline API endpoints
 - [FE] #243 — Frontend: kanban board UI
+- [INT] #244 — Integration: real data, e2e, staging verify
 
 ## E2E Test Skeleton
 ```typescript
@@ -297,7 +307,32 @@ export async function deleteResource(db: DB, orgId: string, id: string): Promise
 | PUT | `/api/resources/:id` | Bearer | body: `UpdateInput` | `Resource` | 400, 401, 403, 404 |
 | DELETE | `/api/resources/:id` | Bearer | — | `204` | 401, 403, 404 |
 
+## Test Plan
+
+> Required. Describes the layered test strategy for this BE sub-issue. Drives the TDD Tasks below.
+
+| Layer | Scope | Tool | File |
+|-------|-------|------|------|
+| Unit | Service functions (pure business logic, no DB) | `bun:test` | `$BE_SERVICES_DIR/__tests__/[feature].test.ts` |
+| Integration | Route handlers + DB + auth middleware | `bun:test` + testcontainers or real test DB | `$BE_ROUTES_DIR/__tests__/[feature].integration.test.ts` |
+| Contract | Zod schema validates request/response bodies | `bun:test` | inline in route test |
+
+### Coverage Requirements
+- Every service function has at least one unit test (happy + 1 error path)
+- Every route handler has at least one integration test covering: 200 success, 400 validation, 401 unauthenticated, 403 forbidden, 404 not found (where applicable)
+- Every Gherkin `[SECURITY]` scenario from the parent [STORY] maps to an integration test
+
 ## TDD Tasks
+
+> **MANDATORY.** Every task below MUST include:
+> - A `**Progress check:**` shell command that returns exit 0 when the task is done
+> - Complete test code (copy-pasteable, no `// TODO`, no `...`, no `implement X here`)
+> - Exact run command (`$RUNTIME test ...`)
+> - Expected output on both FAIL and PASS runs (counts, pass/fail labels)
+> - Exact implementation code (no placeholders)
+> - Git commit command with commit message
+>
+> A reviewer will BLOCK this issue if any of the above is missing.
 
 ### Task 0: E2E Tests (outer RED)
 **Progress check:** `test -f $BE_DIR/tests/e2e/[slug].test.ts`
@@ -363,7 +398,9 @@ Commit: `git commit -m "feat: [feature] e2e green"`
 ## Completion Criteria
 - [ ] `$BE_TEST_CMD` exits 0
 - [ ] `$RUNTIME run build` exits 0
-- [ ] All route contracts return correct status codes
+- [ ] All route contracts return documented status codes (asserted in integration tests)
+- [ ] Every Gherkin [SECURITY] scenario in parent [STORY] has a corresponding integration test
+- [ ] PR body includes `Closes #[BE_NUMBER]`
 - [ ] [feature-specific check]
 ````
 
@@ -425,6 +462,8 @@ Use for frontend implementation tasks within a [STORY]. Created by /design for c
 
 ## Shared Contract
 See parent #[STORY_NUMBER] — Shared Contract section.
+
+> **MANDATORY sections below:** `## Mock Data`, `## API Client`, `## Component Spec`, `## i18n Keys` (both locales), `## Indicative Layout`, `## PM Checkpoints`, `## TDD Tasks`. A reviewer will BLOCK this issue if any is missing.
 
 ## Mock Data
 ```typescript
@@ -505,9 +544,8 @@ featureKey: {
 ```
 
 ## Indicative Layout
-ASCII art showing the spatial structure of the page/component. Shows structure, not styling.
-Use box-drawing characters (┌─┐│└─┘), `[...]` for interactive elements, labels for component names.
-Show state variants (populated, empty, error) when layouts differ.
+
+> **Required.** ASCII art showing the spatial structure of the page/component. Shows structure, not styling. Use box-drawing characters (┌─┐│└─┘), `[...]` for interactive elements, labels for component names. Include at least 2 variants when layout differs by state: populated + empty, OR populated + error.
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -607,11 +645,14 @@ Step 2: Wire to mock data initially (swap to real API during integration)
 Commit: `git commit -m "feat: add [feature] API client"`
 
 ## Integration Handoff
-When BE is ready:
-- [ ] Swap mock imports for real API client calls
-- [ ] Verify type alignment (FE types match BE response)
-- [ ] Remove/relocate mock files
-- [ ] Smoke test with real data
+
+> Integration work is owned by the `[INT]` sub-issue, not this [FE] issue. This [FE] issue completes when the component renders correctly with mock data (CP1–CP4). The [INT] sub-issue takes over for mock-swap, real-API wiring, and Gherkin E2E.
+
+Handoff checklist (copy to `[INT]` sub-issue body when created):
+- [ ] Mock files to delete: `$FE_DIR/src/lib/mock/[feature].ts`
+- [ ] API client functions ready for real calls: `$API_CLIENT_DIR/[feature].ts`
+- [ ] Type alignment verified against BE response shape
+- [ ] Smoke test path: navigate to `$APP_URL/[feature]`, expect [observable result]
 
 ## Completion Criteria
 - [ ] `$FE_TEST_CMD` exits 0
@@ -736,6 +777,85 @@ When BE is ready:
 - [ ] `$RUNTIME run build` exits 0
 - [ ] zh-CN translations present
 - [ ] PM CP4 sign-off obtained
+````
+
+## [INT] -- Integration & Verification Sub-Issue
+
+Use for integration tasks within a [STORY]. Owns FE↔BE wiring, full user journey E2E tests, and deployment verification. Created by /design for every story.
+
+````markdown
+**Parent:** #[STORY_NUMBER]
+**Depends on:** [BE] #[BE_NUMBER], [FE] #[FE_NUMBER]
+
+## Scope
+- Replace FE mocks with real API client calls (from [FE] #[FE_NUMBER])
+- Implement Gherkin scenarios from parent [STORY] as runnable e2e tests
+- Verify deployed preview URL against full user journey via `/super-ralph:verify`
+
+## Gherkin User Journey
+See parent #[STORY_NUMBER] — Acceptance Criteria (Gherkin) section.
+
+## Integration Tasks
+
+### Task 0: Mock Swap
+**Progress check:** `! grep -r "mock[Feature]" $FE_DIR/src/app/[feature]` (mock imports removed from pages)
+**Files:** Modify `$FE_PAGES_DIR/[feature]/page.tsx`, delete `$FE_DIR/src/lib/mock/[feature].ts`
+1. Replace `mock[Feature]List` imports with `[feature]Api.list()` calls
+2. Run type check: `cd $FE_DIR && $RUNTIME run typecheck` — Expected: PASS
+3. Commit: `git commit -m "chore: swap [feature] mocks for real API"`
+
+### Task 1: E2E Tests (from Gherkin)
+**Progress check:** `test -f tests/e2e/[story-slug].test.ts && grep -c "test(" tests/e2e/[story-slug].test.ts` — Expected: ≥3
+**Files:** Modify `tests/e2e/[story-slug].test.ts`
+1. Implement each Gherkin scenario as a `test(...)` block — concrete setup, action, assertion
+2. Run: `$RUNTIME test tests/e2e/[story-slug].test.ts`
+3. Expected: PASS — all scenarios pass (3+ tests)
+4. Commit: `git commit -m "test: [feature] e2e green for all Gherkin scenarios"`
+
+## Verification Tasks
+
+### Task 2: Staging Smoke via `/super-ralph:verify`
+**Progress check:** verification report exists in `.claude/runs/verify-[story-slug]/report.md`
+**Files:** Run verify command, capture output
+1. Identify preview URL for the merged PR (from Vercel/preview provider)
+2. Run: `/super-ralph:verify <preview-url> --story #[STORY_NUMBER]`
+3. Expected: verifier returns GREEN for all Gherkin scenarios
+4. If RED: file a `[FIX]` issue referencing #[STORY_NUMBER] and note here
+
+### Task 3: Integration PR
+**Progress check:** PR open with `Closes #[INT_NUMBER]` in body
+1. Push branch, open PR with title `int: [feature] integration and e2e`
+2. Body includes: "Closes #[INT_NUMBER]" + verifier report summary
+3. Expected: CI green, PR links back to parent STORY
+
+## Completion Criteria
+- [ ] Mock data files deleted
+- [ ] `$RUNTIME test tests/e2e/[story-slug].test.ts` — 0 failures, ≥3 scenarios
+- [ ] `/super-ralph:verify` report is GREEN
+- [ ] All 3+ Gherkin scenarios pass on staging preview
+````
+
+### Example
+
+````markdown
+**Parent:** #241
+**Depends on:** [BE] #242, [FE] #243
+
+## Scope
+- Replace FE mocks with real pipeline API client
+- Run the 4 Gherkin scenarios (board renders, empty state, many deals, unauthorized) as e2e tests
+- Verify staging preview URL before marking done
+
+## Integration Tasks
+
+### Task 0: Mock Swap
+**Progress check:** `! grep -r "mock" $FE_DIR/src/app/pipeline`
+**Files:** Modify `$FE_PAGES_DIR/pipeline/page.tsx`, delete `$FE_DIR/src/lib/mock/pipeline.ts`
+...
+
+### Task 1: E2E Tests
+**Progress check:** `grep -c "test(" tests/e2e/pipeline.test.ts` → 4
+...
 ````
 
 ## [QA] -- Test Verification

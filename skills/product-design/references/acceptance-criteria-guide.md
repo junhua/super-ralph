@@ -38,11 +38,12 @@ Every Scenario must have a category label in brackets. No unlabeled scenarios.
 |-------|---------|-------------|
 | `[HAPPY]` | Primary success path | Always -- at least 1 per story |
 | `[EDGE]` | Boundary conditions | Always -- at least 1 per story |
-| `[SECURITY]` | Auth, authz, role checks | Required for any story with role-based access |
+| `[SECURITY]` | Auth, authz, role checks | **Yes, at least 1 — mandatory for all stories regardless of role model** |
 | `[PERF]` | Latency, throughput targets | Only for performance-critical stories |
 
 ### Mandatory Rules
 
+0. **Minimum 3 scenarios per story** — at least one `[HAPPY]`, one `[EDGE]`, one `[SECURITY]`. Stories with fewer scenarios will be BLOCKED by `/super-ralph:review-design`.
 1. **Background is required** -- Always include auth context (persona + orgId)
 2. **Max 6 scenarios per story** -- If you need more, the story is too large (apply SLICE decomposition)
 3. **Concrete data only** -- `"3 agents"` not `"some agents"`; `"Vendor is required"` not `"error message"`

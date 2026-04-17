@@ -106,6 +106,74 @@ EPIC #N
 
 ---
 
+### Step 2.5: Apply Enforcement Gates
+
+For every issue loaded in Step 2, evaluate these gates in order. Emit **BLOCKED** verdict for any failure. Collect all failures before returning.
+
+#### STORY Gates
+
+| Gate | Rule | How to check |
+|------|------|--------------|
+| STORY-G1 | Body contains `## User Journey` (or `## User Journey (narrative)`) section | `grep -q "^## User Journey" <body>` |
+| STORY-G2 | Body contains Gherkin block with ≥3 scenarios AND at least one line matching `Scenario: \[SECURITY\]` | `grep -c "^  Scenario:" <gherkin_block>` ≥ 3 AND `grep -q "Scenario: \[SECURITY\]"` |
+| STORY-G3 | Body lists 3 sub-issues: `[BE] #N`, `[FE] #N`, `[INT] #N` | regex each label present in `## Sub-Issues` block |
+
+#### [BE] Gates
+
+| Gate | Rule | How to check |
+|------|------|--------------|
+| BE-G1 | Body contains `## TDD Tasks` section | `grep -q "^## TDD Tasks" <body>` |
+| BE-G2 | TDD Tasks contain at least 2 `**Progress check:**` lines AND no disallowed placeholders | `grep -c "Progress check:" <body>` ≥ 2 AND `! grep -E "(TODO|\.\.\.|implement X here)" <body>` |
+
+#### [FE] Gates
+
+| Gate | Rule | How to check |
+|------|------|--------------|
+| FE-G1 | Body contains `## Mock Data` section | `grep -q "^## Mock Data" <body>` |
+| FE-G2 | Body contains `## PM Checkpoints` with 4 checkpoints (CP1, CP2, CP3, CP4) | `grep -c "CP[1-4]" <body>` ≥ 4 |
+
+#### [INT] Gates
+
+| Gate | Rule | How to check |
+|------|------|--------------|
+| INT-G1 | Body contains `## Gherkin User Journey` referencing parent story | `grep -q "^## Gherkin User Journey" <body>` AND `grep -q "See parent #" <body>` |
+| INT-G2 | Body contains `## Verification Tasks` with `/super-ralph:verify` invocation | `grep -q "/super-ralph:verify" <body>` |
+
+#### Gate Evaluation Example
+
+For each STORY in the epic:
+```bash
+STORY_BODY=$(gh issue view $STORY_NUMBER --repo $REPO --json body --jq '.body')
+
+# STORY-G1
+if ! echo "$STORY_BODY" | grep -q "^## User Journey"; then
+  FAILURES+=("STORY-G1: #$STORY_NUMBER missing User Journey narrative")
+fi
+
+# STORY-G2
+SCENARIO_COUNT=$(echo "$STORY_BODY" | grep -c "^  Scenario:" || echo 0)
+HAS_SECURITY=$(echo "$STORY_BODY" | grep -c "Scenario: \[SECURITY\]" || echo 0)
+if [ "$SCENARIO_COUNT" -lt 3 ] || [ "$HAS_SECURITY" -lt 1 ]; then
+  FAILURES+=("STORY-G2: #$STORY_NUMBER has $SCENARIO_COUNT scenarios, [SECURITY]=$HAS_SECURITY (need ≥3 and ≥1 SECURITY)")
+fi
+
+# STORY-G3
+if ! echo "$STORY_BODY" | grep -q "\[INT\] #"; then
+  FAILURES+=("STORY-G3: #$STORY_NUMBER missing [INT] sub-issue reference")
+fi
+
+# ... repeat for BE, FE, INT issues
+```
+
+#### Verdict Logic
+
+- Any gate failure → **BLOCKED** (list all failures in report)
+- No failures → continue to existing Steps 3+
+- With `--strict`: treat `[PERF]` missing as BLOCKED as well
+- With `--fix`: auto-append missing sections using templates (experimental, default off)
+
+---
+
 ### Step 3: Dispatch Per-Story Review Agents (parallel)
 
 For each STORY (and its BE/FE sub-issues), dispatch a review agent. Run all in parallel.
@@ -462,6 +530,14 @@ The full report follows this structure:
 | CX-3 | AC-to-test 1:1 coverage | FAIL | Story 2 has 5 AC scenarios but only 3 test cases |
 | CX-4 | Wave plan consistency | PASS | P0 in Wave 1-2, P1 in Wave 2-3 |
 | CX-5 | Epic doc <-> issues sync | PASS | 8 stories in doc, 8 STORY issues on GitHub |
+
+### Gate Summary
+| Issue | Gate | Status |
+|-------|------|--------|
+| #N [STORY] | STORY-G1..3 | PASS / BLOCKED (reason) |
+| #N [BE] | BE-G1..2 | PASS / BLOCKED (reason) |
+| #N [FE] | FE-G1..2 | PASS / BLOCKED (reason) |
+| #N [INT] | INT-G1..2 | PASS / BLOCKED (reason) |
 
 ## Findings Summary
 
