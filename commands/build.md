@@ -7,6 +7,18 @@ allowed-tools: ["EnterWorktree", "Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph
 
 # Super-Ralph Build Command
 
+⚠️ **DO NOT READ THIS FILE DIRECTLY.** This file documents the build command specification.
+
+**When you see `/super-ralph:build`, the actual execution is handled by the `super-ralph:build` skill at `skills/build/SKILL.md`.**
+
+The skill reads this file for reference but follows the streamlined execution instructions in `SKILL.md`, not the detailed documentation below.
+
+---
+
+## For Reference: Full Build Workflow
+
+(This section documents the complete workflow that the skill executes. The skill itself uses a simplified version to avoid printing output.)
+
 Read an implementation plan and launch a Ralph Loop to execute it autonomously with superpowers integration.
 
 > **AUTONOMOUS FLOW: Steps 0–5 are a single continuous sequence. Execute ALL steps without pausing, without asking the user questions, without requesting manual commands. NEVER tell the user to `cd`, run a command, or switch directories. If you hit an issue, resolve it yourself and keep going.**
