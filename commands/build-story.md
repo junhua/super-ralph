@@ -245,6 +245,42 @@ If FE and BE sub-issues exist:
 If `HAS_TDD = 0` and no FE/BE sub-issues:
 1. Proceed with existing Phase 1 plan sub-agent (unchanged)
 
+### Handling `[INT]` sub-issues
+
+Before falling through to the standard build flow, detect whether the current target (`$STORY_ID`) is itself an `[INT]` sub-issue. `[INT]` sub-issues represent integration-level work (mock swap, Gherkin E2E) that must execute AFTER the corresponding `[BE]` and `[FE]` sub-issues have been merged.
+
+```bash
+STORY_TITLE=$(gh issue view $STORY_ID --repo $REPO --json title --jq '.title')
+case "$STORY_TITLE" in
+  "[INT]"*) IS_INT=true ;;
+  *)        IS_INT=false ;;
+esac
+```
+
+#### If the target is an `[INT]` sub-issue
+
+1. **Verify both [BE] and [FE] sub-issues are merged.** `[INT]` declares its sibling `[BE]` and `[FE]` issues in its body (look for `Depends on: #M, #P` or sibling references under the parent epic). For each sibling:
+   ```bash
+   gh issue view #N --json state,labels,closedAt,timelineItems
+   ```
+   The sibling must be `CLOSED` with a merged PR in its `timelineItems`. If either is not merged, **pause** and instruct the user:
+   > "Cannot start [INT] #N — [BE] #M or [FE] #P is still open. Complete those first."
+   Exit without proceeding.
+
+2. **Use the `skills/issue-management` skill** for all status updates on the `[INT]` issue and its siblings (comments, labels, closure). Do not hand-craft `gh issue` status mutations outside that skill.
+
+3. **Execute the Integration Tasks** from the `[INT]` issue body:
+   - **Task 0: Mock Swap** — replace any mocks introduced by `[BE]`/`[FE]` with real wiring across the now-merged contracts.
+   - **Task 1: Gherkin E2E** — execute the Gherkin acceptance scenarios end-to-end against the integrated system.
+
+4. **Execute the Verification Tasks** by invoking `/super-ralph:verify` against the integration branch's preview deployment.
+
+5. **Open an integration PR** with `Closes #INT_NUMBER` in the body. Target the default branch (staging) like any other PR.
+
+6. **Do NOT invoke the TDD red/green cycle.** Unit-level TDD was already completed inside the `[BE]` and `[FE]` sub-issues. `[INT]` is integration-level work only: mock swap, E2E coverage, and verification.
+
+If `IS_INT=true`, follow this branch and skip the standard Phase 1 plan/TDD dispatch. If `IS_INT=false`, continue with the normal flow below.
+
 **Goal:** Create a ralph-optimized implementation plan with TDD tasks.
 
 **Dispatch sub-agent:**
