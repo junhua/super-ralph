@@ -61,6 +61,18 @@ A backend implementation task within a [STORY]. Created by /design for concurren
 - **Parent:** Always belongs to a [STORY]
 - **Assignment:** None — BE devs self-assign
 
+### [INT] -- Integration & Verification Sub-Issue
+
+An integration sub-issue within a [STORY]. Owns the FE↔BE handshake: replacing mocks with real API client calls, running the Gherkin user journey as end-to-end tests, and verifying the deployed preview URL via `/super-ralph:verify`. Runs AFTER [BE] and [FE] are merged.
+
+- **Title format:** `[INT] Feature description — Integration & E2E`
+- **Labels:** `area/fullstack`, `integration`
+- **Project fields:** Type=story, Size (typically S)
+- **Parent:** Always belongs to a [STORY]
+- **Assignment:** None — self-assigned by the integration agent or engineer
+- **Depends on:** parent [STORY]'s [BE] and [FE] sub-issues (both merged)
+- **Owns:** mock-to-real swap, full-journey E2E test execution, staging smoke verification
+
 ### [FIX] -- Bug Fix
 
 A confirmed bug that needs fixing. Includes bugs, security vulnerabilities, and performance regressions.
@@ -140,6 +152,15 @@ gh issue create --title "[BE] Feature description — Backend" \
   --label "area/backend" \
   --body "**Parent:** #STORY_NUMBER\n\nBODY" --repo $REPO
 # Then add to Project #$PROJECT_NUM and set fields: Type=story, Size
+```
+
+### [INT] under a STORY
+
+```bash
+gh issue create --title "[INT] Feature description — Integration & E2E" \
+  --label "area/fullstack,integration" \
+  --body "**Parent:** #STORY_NUMBER\n\nBODY" --repo $REPO
+# Then add to Project #$PROJECT_NUM and set fields: Type=story, Size=S
 ```
 
 ### [FIX] for bugs
@@ -340,7 +361,7 @@ EOF
 
 > **Note:** Always attach EPICs to the active Milestone. Check `gh api repos/$REPO/milestones --jq '.[] | select(.state=="open")'` to find the current one.
 
-### Step 2: Create [STORY] sub-issues with [FE] and [BE]
+### Step 2: Create [STORY] sub-issues with [FE], [BE], and [INT]
 
 For each story in the epic, create a [STORY] issue linked to the parent, then create its [FE] and [BE] sub-issues:
 
@@ -422,6 +443,29 @@ EOF
 
 FE_NUM=$(echo "$FE_URL" | grep -o '[0-9]*$')
 
+# Create the [INT] sub-issue
+INT_URL=$(gh issue create --title "[INT] Implement feature X — Integration & E2E" \
+  --label "area/fullstack,integration" \
+  --body "$(cat <<EOF
+**Parent:** #${STORY_NUM}
+**Depends on:** [BE] #${BE_NUM}, [FE] #${FE_NUM}
+
+## Scope
+Replace FE mocks with real API client, run full Gherkin user journey as e2e tests, verify staging preview.
+
+## Gherkin User Journey
+See parent #${STORY_NUM} — Acceptance Criteria (Gherkin) section.
+
+## Integration Tasks
+...
+
+## Verification Tasks
+...
+EOF
+)" --repo $REPO)
+
+INT_NUM=$(echo "$INT_URL" | grep -o '[0-9]*$')
+
 # Update STORY body with actual sub-issue numbers
 gh issue edit "$STORY_NUM" --body "..." --repo $REPO
 ```
@@ -436,6 +480,7 @@ gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/iss
 gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/STORY_NUMBER
 gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/FE_NUMBER
 gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/BE_NUMBER
+gh project item-add $PROJECT_NUM --owner $ORG --url https://github.com/$REPO/issues/INT_NUMBER
 ```
 
 ### Step 4: Set all to Todo status
@@ -513,6 +558,7 @@ Size, Type, and Priority are tracked via Project #$PROJECT_NUM single-select fie
 | `priority/critical` | Any | Hotfix auto-detection trigger (repair-domains) |
 | `priority/urgent` | Any | Hotfix auto-detection trigger (repair-domains) |
 | `security` | Any | Security domain trigger (repair-domains) |
+| `integration` | [INT] | Integration + E2E marker |
 
 > **Legacy:** Existing issues may have `size/*` labels from the previous convention. These remain valid but new issues should use Project #$PROJECT_NUM fields for size tracking.
 
