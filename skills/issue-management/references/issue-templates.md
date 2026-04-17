@@ -463,6 +463,8 @@ Use for frontend implementation tasks within a [STORY]. Created by /design for c
 ## Shared Contract
 See parent #[STORY_NUMBER] — Shared Contract section.
 
+> **MANDATORY sections below:** `## Mock Data`, `## API Client`, `## Component Spec`, `## i18n Keys` (both locales), `## Indicative Layout`, `## PM Checkpoints`, `## TDD Tasks`. A reviewer will BLOCK this issue if any is missing.
+
 ## Mock Data
 ```typescript
 // $FE_DIR/src/mocks/[feature].mock.ts
@@ -542,9 +544,8 @@ featureKey: {
 ```
 
 ## Indicative Layout
-ASCII art showing the spatial structure of the page/component. Shows structure, not styling.
-Use box-drawing characters (┌─┐│└─┘), `[...]` for interactive elements, labels for component names.
-Show state variants (populated, empty, error) when layouts differ.
+
+> **Required.** ASCII art showing the spatial structure of the page/component. Shows structure, not styling. Use box-drawing characters (┌─┐│└─┘), `[...]` for interactive elements, labels for component names. Include at least 2 variants when layout differs by state: populated + empty, OR populated + error.
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -644,11 +645,14 @@ Step 2: Wire to mock data initially (swap to real API during integration)
 Commit: `git commit -m "feat: add [feature] API client"`
 
 ## Integration Handoff
-When BE is ready:
-- [ ] Swap mock imports for real API client calls
-- [ ] Verify type alignment (FE types match BE response)
-- [ ] Remove/relocate mock files
-- [ ] Smoke test with real data
+
+> Integration work is owned by the `[INT]` sub-issue, not this [FE] issue. This [FE] issue completes when the component renders correctly with mock data (CP1–CP4). The [INT] sub-issue takes over for mock-swap, real-API wiring, and Gherkin E2E.
+
+Handoff checklist (copy to `[INT]` sub-issue body when created):
+- [ ] Mock files to delete: `$FE_DIR/src/lib/mock/[feature].ts`
+- [ ] API client functions ready for real calls: `$API_CLIENT_DIR/[feature].ts`
+- [ ] Type alignment verified against BE response shape
+- [ ] Smoke test path: navigate to `$APP_URL/[feature]`, expect [observable result]
 
 ## Completion Criteria
 - [ ] `$FE_TEST_CMD` exits 0
