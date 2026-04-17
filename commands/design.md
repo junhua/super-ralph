@@ -804,6 +804,7 @@ Calculate total effort and optimal execution order:
    - Wave 2: P0 stories dependent on Wave 1 + independent P1 stories
    - Wave 3: Remaining P1 + P2 stories
 4. Identify the critical path (longest chain of dependent stories)
+4a. Within each story, `[INT]` is always ONE wave after its parent's `[BE]` + `[FE]` (can't start until both merge).
 5. Calculate parallel speedup (how many stories can run concurrently per wave)
 
 ---
@@ -851,10 +852,10 @@ Calculate total effort and optimal execution order:
    ## Execution Plan
 
    ### AI-Hours Estimate
-   | Story | BE | FE | Total |
-   |-------|-----|-----|-------|
-   | Story 1 | 2h | 1.5h | 3.5h |
-   | **Total** | **Xh** | **Yh** | **Zh** |
+   | Story | BE | FE | INT | Total |
+   |-------|-----|-----|-----|-------|
+   | Story 1 | 2h | 1.5h | 1h | 4.5h |
+   | **Total** | **Xh** | **Yh** | **Zh** | **Wh** |
 
    ### Dependency Graph
    ```
@@ -872,9 +873,11 @@ Calculate total effort and optimal execution order:
    - [ ] #?? [STORY] Story 1
      - [ ] #?? [BE] Story 1 — Backend
      - [ ] #?? [FE] Story 1 — Frontend
+     - [ ] #?? [INT] Story 1 — Integration & E2E
    - [ ] #?? [STORY] Story 2
      - [ ] #?? [BE] Story 2 — Backend
      - [ ] #?? [FE] Story 2 — Frontend
+     - [ ] #?? [INT] Story 2 — Integration & E2E
 
    ## Epic Document
    docs/epics/YYYY-MM-DD-<slug>.md
@@ -888,9 +891,9 @@ Calculate total effort and optimal execution order:
    # Set Type=epic, Size, Priority via project field IDs
    ```
 
-#### Step 13: Create Story + Sub-Issues (3 issues per story)
+#### Step 13: Create Story + Sub-Issues (4 issues per story)
 
-For each story, create three issues in order:
+For each story, create four issues in order:
 
 **a. [STORY] issue:**
 ```bash
@@ -933,6 +936,21 @@ EOF
 ```
 
 Add to Project #$PROJECT_NUM, set Type=chore, Size, Priority.
+
+**d. [INT] sub-issue:**
+```bash
+gh issue create --title "[INT] <Story title> — Integration & E2E" \
+  --label "area/fullstack,integration" \
+  --body "$(cat <<'EOF'
+**Parent:** #<story-number>
+**Depends on:** [BE] #<be-number>, [FE] #<fe-number>
+
+[INT SUB-ISSUE BODY FROM STEP 9, OUTPUT 4]
+EOF
+)" --repo $REPO
+```
+
+Add to Project #$PROJECT_NUM, set Type=story, Size=S (typically), Priority inherited from STORY.
 
 #### Step 14: Update EPIC Body with Linked Issue Numbers
 
