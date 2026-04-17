@@ -4,7 +4,7 @@
 
 # Super-Ralph
 
-> **v0.9.2** — Project-agnostic, design-first autonomous development. `/design` is the single entry point: it produces implementation-ready GitHub issues with embedded TDD tasks, Gherkin AC, and FE/BE sub-issues for concurrent development. Project-specific values loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
+> **v0.10.0** — Project-agnostic, design-first autonomous development. `/design` produces 4 issues per story: `[STORY]` + `[BE]` + `[FE]` + `[INT]` (new), with mandatory User Journey, full Gherkin ≥3 scenarios including `[SECURITY]`, and mandatory TDD Tasks. Nine enforcement gates in `/review-design` block non-compliant designs. Project-specific values loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
 
 Hit enter. Walk away. Come back to results.
 
@@ -32,7 +32,7 @@ Super-ralph builds on other plugins. Declared in `plugin.json`:
 
 Super-ralph orchestrates the full development lifecycle autonomously using a **design-first** pipeline:
 
-1. **Design** — Create implementation-ready epics with Gherkin AC, TDD tasks, FE/BE sub-issues, and execution plans
+1. **Design** — Create implementation-ready epics with Gherkin AC, TDD tasks, FE/BE/INT sub-issues, and execution plans
 2. **Build** — Execute stories from issue body directly (TDD tasks are embedded — no separate plan step)
 3. **Review & Fix** — Multi-agent code review on branch diff, fix issues until clean, create PR
 4. **Verify** — Browser-verify Vercel preview deployments against Gherkin acceptance criteria
@@ -45,12 +45,12 @@ For ad-hoc work ([FIX], [CHORE], spikes), use `/plan` → `/build` instead.
 
 ```
 1. Requirements    HoP confirms business requirements (human)
-2. Planning        PM uses /design → EPIC + STORYs + [FE]/[BE] sub-issues
+2. Planning        PM uses /design → EPIC + STORYs + [FE]/[BE]/[INT] sub-issues
 3a. FE Dev         Design Engineering iterates with PM/HoP (mock data)
 3b. BE Dev         Backend/AI built concurrently
-4. Integration     FE + BE connected, e2e tests pass
-5. Testing         Playwright e2e + manual verification
-6. Release         /release seals and versions
+3c. Integration    Mock swap + Gherkin E2E + `/super-ralph:verify` (after BE+FE merge)
+4. Testing         Playwright e2e + manual verification
+5. Release         /release seals and versions
 ```
 
 ## Pipelines
@@ -72,8 +72,9 @@ Observability: status (runtime dashboard) / cleanup (prune stale state)
 ```
 [EPIC]  → Feature epic with PM Summary + execution plan
   └── [STORY] → User story with Gherkin AC + shared contract
-        ├── [BE] → Backend: schema + service + route + TDD tasks
-        └── [FE] → Frontend: component + mock data + i18n + TDD tasks + PM checkpoints
+        ├── [BE]  → Backend: schema + service + route + TDD tasks
+        ├── [FE]  → Frontend: component + mock data + i18n + TDD tasks + PM checkpoints
+        └── [INT] → Integration: mock swap + Gherkin E2E + `/super-ralph:verify`
 [FIX]   → Bug fix (use /plan or /repair)
 [CHORE] → Technical work (use /plan)
 ```

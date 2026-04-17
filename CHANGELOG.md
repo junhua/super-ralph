@@ -1,5 +1,23 @@
 # Super-Ralph Changelog
 
+## v0.10.0 — [INT] Sub-Issue + Gate Enforcement (2026-04-17)
+
+### Added
+- `[INT]` sub-issue type for integration + E2E + deployment verification
+- Mandatory `## User Journey` narrative at `[STORY]` level
+- Mandatory `## Test Plan` section in `[BE]` sub-issues
+- Nine enforcement gates in `/super-ralph:review-design` (STORY-G1..3, BE-G1..2, FE-G1..2, INT-G1..2)
+- `[INT]` routing in `/super-ralph:build-story`
+
+### Changed
+- Story fanout: `[STORY]` now has 3 sub-issues (`[BE]` + `[FE]` + `[INT]`), was 2
+- Gherkin AC now requires minimum 3 scenarios including at least one `[SECURITY]` scenario
+- TDD Tasks in `[BE]`/`[FE]` marked MANDATORY — reviewer BLOCKS issues missing exact test code
+
+### Migration
+- Existing open `[STORY]` issues without `[INT]` sub-issues need remediation — see `docs/superpowers/plans/2026-04-17-kira-zero-issue-remediation-plan.md` (in kira-zero repo) for the retroactive enhancement plan
+- Closed/Shipped issues left untouched
+
 ## v0.9.2 — Effectiveness Pass (2026-04-17)
 
 Focused improvements driven by a 4-agent parallel deep review of the plugin.
