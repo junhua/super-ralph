@@ -21,11 +21,12 @@ Translate product vision, business goals, and user feedback into structured epic
 Vision / Goals / Feedback
     |  /super-ralph:design (single command, 6-phase SADD)
 Epic (docs/epics/) + GitHub Issues
-    |-- [STORY] -- Gherkin AC + Shared Contract + E2E skeleton
-    |   |-- [BE] -- Schema + Service + Route + TDD tasks
-    |   +-- [FE] -- Component + Mock data + i18n + TDD tasks
-    |  /super-ralph:build-story #N (no plan step needed)
-Implementation -> PR -> Merge -> Deploy
+    |-- [STORY] -- User Journey + Gherkin AC + Shared Contract + E2E skeleton
+    |   |-- [BE]  -- Schema + Service + Route + Test Plan + TDD tasks
+    |   |-- [FE]  -- Component + Mock data + i18n + PM Checkpoints + TDD tasks
+    |   +-- [INT] -- Mock swap + Gherkin E2E + `/super-ralph:verify` against staging
+    |  /super-ralph:build-story #N (executes any of [BE], [FE], or [INT])
+Implementation -> PR -> Merge -> Deploy -> Verify
 ```
 
 Each story is immediately buildable via `/super-ralph:build-story #N`. No intermediate `/plan` step exists.
@@ -88,6 +89,9 @@ Within each sub-issue (FE or BE), tasks follow the TDD loop order:
 Every story with Size >= M must have these sections filled by the design agent after reading the codebase. The design agent reads existing code to match patterns, not invent new ones.
 
 ### Required Sections
+
+**User Journey (narrative):**
+3-5 sentences from the persona's POV describing the happy path. Required for every story regardless of size. The Gherkin AC formalizes this; the narrative makes it demoable.
 
 **Schema Changes:**
 ```typescript
@@ -207,6 +211,7 @@ Since stories are immediately buildable via `/super-ralph:build-story`, the foll
 | Dependencies (Story N) | Execution plan ordering |
 | Shared Contract | Types file created in Task 0 of both FE and BE |
 | Patterns to Follow | Reference files for the executing agent |
+| [INT] sub-issue | Integration tasks + E2E + `/super-ralph:verify` invocation |
 
 ## Epic Structure
 
@@ -275,11 +280,12 @@ Feature: [Story title]
 
 ### Sub-Issue Structure
 
-Each story produces three GitHub issues:
+Each story produces FOUR GitHub issues:
 
-1. **[STORY] #N** -- The parent with Gherkin AC, shared contract, and E2E skeleton
-2. **[BE] #N** -- Backend sub-issue with schema, service, route, and TDD tasks
-3. **[FE] #N** -- Frontend sub-issue with component, API client, i18n, and TDD tasks
+1. **[STORY] #N** -- User Journey + Gherkin AC + shared contract + E2E skeleton
+2. **[BE] #N** -- Backend: schema, service, route, test plan, TDD tasks
+3. **[FE] #N** -- Frontend: component, mock data, i18n, PM checkpoints, TDD tasks
+4. **[INT] #N** -- Integration: mock swap, full Gherkin E2E, staging verify
 
 ## Writing Good Epics and Stories
 
