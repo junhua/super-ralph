@@ -1,6 +1,6 @@
 # Project Board IDs
 
-> **Config:** All project-specific IDs are loaded from `.claude/super-ralph-config.md`. This file documents the structure and meaning of each field.
+> **Config:** All project-specific IDs are loaded from `.claude/super-ralph-config.md`. This file is auto-generated on first use by any super-ralph command. This document explains the structure and meaning of each field.
 
 ## Project
 

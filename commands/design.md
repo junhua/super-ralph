@@ -25,7 +25,7 @@ Execute these phases in order. **Do NOT ask the user for input at any point.** M
 
 ### Step 0: Load Project Config
 
-Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, first attempt auto-init by invoking the init command logic, then tell the user to run `/super-ralph:init` manually if auto-init fails.
 
 Extract these values for use in all subsequent steps:
 - `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
@@ -647,8 +647,9 @@ Task tool:
 
     ## File Output
 
-    Write all three outputs to a temp file:
-    `/tmp/super-ralph-design-[EPIC_SLUG]/story-N-plan.md`
+    Write all three outputs to a run-state file:
+    `$(git rev-parse --show-toplevel)/.claude/runs/design-[EPIC_SLUG]/story-N-plan.md`
+    (fallback: `/tmp/super-ralph-design-[EPIC_SLUG]/story-N-plan.md` if .claude not writable)
 
     Format:
     ```markdown
@@ -673,7 +674,7 @@ Task tool:
 
 After all story-planner agents complete:
 
-1. Read all temp files from `/tmp/super-ralph-design-[EPIC_SLUG]/story-N-plan.md`
+1. Read all run-state files from `.claude/runs/design-[EPIC_SLUG]/story-N-plan.md` (fallback: `/tmp/super-ralph-design-[EPIC_SLUG]/story-N-plan.md`)
 2. Build a dependency DAG:
    - Schema stories before service stories
    - Service stories before route stories
@@ -858,7 +859,7 @@ Task tool:
   prompt: |
     You are a design-reviewer agent.
 
-    Read the review-design command: /Users/junhua/.claude/plugins/super-ralph/commands/review-design.md
+    Read the review-design command: ${CLAUDE_PLUGIN_ROOT}/commands/review-design.md
     Follow it completely for EPIC #<epic-number>.
 
     Run all PM Gates, Developer Gates, and Cross-Issue Checks.

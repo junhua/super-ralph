@@ -1,6 +1,6 @@
 ---
 name: repair-domains
-description: "Domain detection and routing for repair work — maps fix type to skills, review agents, test suites, and fix patterns across frontend, backend, devops, cloud infra, and security domains"
+description: "Detect the domain of a bug/repair task (frontend, backend, devops, cloud-infra, security) and route to appropriate skills, review agents, test suites, and fix patterns. Use when /super-ralph:repair is invoked, or when user mentions 'fix bug', 'hotfix', 'debug issue', 'repair', 'bug report', 'which area is affected', 'frontend or backend bug', 'production issue', 'incident', 'broken feature', 'regression', 'error in UI', 'API error', 'deployment failing'."
 ---
 
 # Repair Domains Skill

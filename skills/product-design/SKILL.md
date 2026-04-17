@@ -3,7 +3,7 @@ name: product-design
 description: "Create epics and user stories with Gherkin acceptance criteria, TDD tasks, FE/BE sub-issues, and pre-decided implementation contracts. Triggers when /super-ralph:design is invoked, or when the user mentions 'write epics', 'create user stories', 'product design', 'acceptance criteria', 'feature breakdown', 'e2e test scenarios', or wants to translate business goals into structured development artifacts. Produces implementation-ready stories that feed directly into /super-ralph:build-story without a separate plan step."
 ---
 
-> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md`.
+> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md` (auto-generated on first use by any super-ralph command).
 
 # Product Design -- Epics & Stories
 

@@ -1,6 +1,6 @@
 # Issue Body Templates
 
-> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md`.
+> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
 
 Copy-paste-ready issue body templates for each issue type in the monorepo.
 

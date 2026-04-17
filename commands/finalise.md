@@ -25,7 +25,7 @@ Execute these steps in order. **Do NOT ask the user for input at any point.**
 
 ### Step 0: Load Project Config
 
-Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, first attempt auto-init by invoking the init command logic, then tell the user to run `/super-ralph:init` manually if auto-init fails.
 
 Extract these values for use in all subsequent steps:
 - `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)

@@ -1,9 +1,9 @@
 ---
 name: issue-management
-description: "Create and manage GitHub Issues and Milestones following the [EPIC]/[STORY]/[FIX]/[CHORE] taxonomy. Use when creating EPICs, stories, filing bugs, tracking requirements, managing milestones/releases, or syncing the project board. Triggers on /super-ralph:issues or mentions of 'create epic', 'create story', 'file issue', 'update board', 'create milestone', 'release'."
+description: "Create and manage GitHub Issues and Milestones following the [EPIC]/[STORY]/[FIX]/[CHORE] taxonomy. Use when /super-ralph:design, /super-ralph:finalise, or /super-ralph:release is invoked. Triggers on mentions of 'create epic', 'create story', 'file issue', 'filing bug', 'update project board', 'create milestone', 'sub-issue', 'FE/BE split', 'close issue', 'move to shipped', 'link PR to issue', 'GitHub issue taxonomy'."
 ---
 
-> **Config:** Project-specific values (repo, org, project IDs, team members, paths) are loaded from `.claude/super-ralph-config.md`.
+> **Config:** Project-specific values (repo, org, project IDs, team members, paths) are loaded from `.claude/super-ralph-config.md` (auto-generated on first use by any super-ralph command).
 
 # Issue Management
 

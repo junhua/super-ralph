@@ -1,6 +1,6 @@
 # Epic Template
 
-> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md`.
+> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
 
 Use this template when creating epics. Fill in all bracketed sections. Remove comments before finalizing.
 

@@ -60,7 +60,7 @@ Execute all steps in order. **NEVER ask for human input** at any point.
 
 ### Step 0a: Load Project Config
 
-Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, first attempt auto-init by invoking the init command logic, then tell the user to run `/super-ralph:init` manually if auto-init fails.
 
 Extract these values for use in all subsequent steps:
 - `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
@@ -98,9 +98,14 @@ Extract these values for use in all subsequent steps:
    - Extract: title, persona, action, outcome, acceptance criteria (Given/When/Then)
    - These inline stories won't have GitHub issue numbers — create a synthetic ID (story-1, story-2, etc.)
 
-5. **Create temp directory and write epic context:**
+5. **Create run directory and write epic context:**
    ```bash
-   E2E_DIR="/tmp/super-ralph-e2e-$EPIC_NUMBER"
+   # Prefer durable .claude/runs/ over /tmp/ — survives reboots.
+   if [ -w "$(git rev-parse --show-toplevel)/.claude" ]; then
+     E2E_DIR="$(git rev-parse --show-toplevel)/.claude/runs/e2e-$EPIC_NUMBER"
+   else
+     E2E_DIR="/tmp/super-ralph-e2e-$EPIC_NUMBER"
+   fi
    mkdir -p "$E2E_DIR/stories"
    ```
    Write `$E2E_DIR/epic-context.md` with:
@@ -251,7 +256,7 @@ Task tool:
     You are a Story Executor for Epic #$EPIC_NUMBER, Story #$STORY_NUMBER.
 
     Follow the build-story workflow from:
-      /Users/junhua/.claude/plugins/super-ralph/commands/build-story.md
+      ${CLAUDE_PLUGIN_ROOT}/commands/build-story.md
 
     Key overrides for e2e context:
     - Temp directory: $E2E_DIR/stories/$STORY_NUMBER (NOT /tmp/super-ralph-story-*)

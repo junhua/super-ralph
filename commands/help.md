@@ -11,13 +11,14 @@ Display comprehensive help for the super-ralph plugin.
 ## Output the following help text:
 
 ```
-# Super-Ralph v0.9.0 — Design-First Autonomous Development
+# Super-Ralph v0.9.1 — Design-First Autonomous Development
 
 Super-ralph is a project-agnostic, design-first autonomous development plugin.
 /design is the single entry point: it produces implementation-ready GitHub issues
 with embedded TDD tasks, Gherkin acceptance criteria, and FE/BE sub-issues for
 concurrent development. Project-specific values are loaded from
-.claude/super-ralph-config.md — run /super-ralph:init to generate it.
+.claude/super-ralph-config.md — auto-generated on first use, or run
+/super-ralph:init to regenerate.
 
 ## Philosophy
 
@@ -73,7 +74,8 @@ concurrent development. Project-specific values are loaded from
   Phase 5 (Issues):      Create GitHub issues, set Project #9 fields
   Phase 6 (Review):      /review-design validates all issues
 
-  Temp files (/tmp/super-ralph-design-*/) bridge context between phases.
+  Run-state files (.claude/runs/design-*/) bridge context between phases.
+  (Fallback to /tmp/super-ralph-design-*/ when .claude is not writable.)
 
 ## Commands
 
@@ -178,6 +180,20 @@ concurrent development. Project-specific values are loaded from
 
   Promote staging → main with QA + Codex review gate.
 
+### /super-ralph:status [--runs|--worktrees|--prs|--epics|--all]
+
+  Dashboard view of runtime state: active ralph-loops, worktrees,
+  open PRs on super-ralph/* branches, in-flight epics, stale runs.
+
+  Example:
+    /super-ralph:status
+    /super-ralph:status --worktrees
+    /super-ralph:status --prs
+
+### /super-ralph:init
+
+  Auto-detect project structure and generate .claude/super-ralph-config.md.
+
 ### /super-ralph:help
 
   Show this help text.
@@ -239,11 +255,33 @@ concurrent development. Project-specific values are loaded from
 
   Super-ralph reads .claude/super-ralph-config.md for project-specific values:
   repo, org, project board IDs, team members, codebase paths, production URLs.
-  Run /super-ralph:init to auto-generate this file for your project.
+  This file is auto-generated on first use, or run /super-ralph:init to regenerate.
+
+## Plugin Dependencies
+
+  Required:
+    - ralph-loop plugin — Stop hook that drives the autonomous iteration loop
+    - superpowers plugin — TDD, debugging, verification, parallel-agents, planning skills
+
+  Optional (graceful degradation when missing):
+    - pr-review-toolkit — code-reviewer, silent-failure-hunter, pr-test-analyzer,
+      comment-analyzer, type-design-analyzer, code-simplifier agents for /review-fix
+    - claude-in-chrome — browser automation for /verify
+
+  See .claude-plugin/plugin.json for the dependency manifest.
+
+## Run State
+
+  Per-run state (context, progress, phase outputs) is kept in:
+    .claude/runs/<kind>-<id>/       ← durable, survives reboots, preferred
+    /tmp/super-ralph-<kind>-<id>/   ← legacy fallback when .claude isn't writable
+
+  Resume detection reads both locations, preferring .claude/runs/.
+  Use /super-ralph:status to inspect current runs.
 
 ## Prerequisites
 
-  - .claude/super-ralph-config.md — project config (run /super-ralph:init)
-  - claude-in-chrome — browser automation for verify/release
-  - codex CLI (optional) — AI code review for release promotion
+  - .claude/super-ralph-config.md — project config (auto-generated on first use)
+  - claude-in-chrome — browser automation for verify/release (optional)
+  - codex CLI — AI code review for release promotion (optional)
 ```

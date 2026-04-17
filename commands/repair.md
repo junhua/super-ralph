@@ -47,7 +47,7 @@ Execute all steps autonomously. **Do NOT ask the user for input at any point.**
 
 ### Step 0: Load Project Config
 
-Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, first attempt auto-init by invoking the init command logic, then tell the user to run `/super-ralph:init` manually if auto-init fails.
 
 Extract these values for use in all subsequent steps:
 - `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
@@ -121,7 +121,12 @@ Set `IS_HOTFIX=true/false` and `TARGET_BRANCH` (`main` if hotfix, `staging` othe
 
 ```bash
 SLUG=$(echo "$PROBLEM_SUMMARY" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | head -c 40)
-REPAIR_DIR="/tmp/super-ralph-repair-$SLUG"
+# Prefer durable .claude/runs/ over /tmp/ — survives reboots.
+if [ -w "$(git rev-parse --show-toplevel)/.claude" ]; then
+  REPAIR_DIR="$(git rev-parse --show-toplevel)/.claude/runs/repair-$SLUG"
+else
+  REPAIR_DIR="/tmp/super-ralph-repair-$SLUG"
+fi
 mkdir -p "$REPAIR_DIR"
 ```
 
@@ -273,7 +278,7 @@ Task tool:
     Branch: $BRANCH_NAME
 
     ## Instructions
-    Read the full review-fix workflow: /Users/junhua/.claude/plugins/super-ralph/commands/review-fix.md
+    Read the full review-fix workflow: ${CLAUDE_PLUGIN_ROOT}/commands/review-fix.md
     Follow it completely, with these specifics:
 
     1. **Switch to the branch** in a worktree:

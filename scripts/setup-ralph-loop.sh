@@ -54,7 +54,15 @@ if [[ "$MAX_ITERATIONS" != "0" ]] && ! [[ "$MAX_ITERATIONS" =~ ^[0-9]+$ ]]; then
 fi
 
 # --- Create state directory ---
-mkdir -p .claude
+# Resolve to the current repo root if inside a git worktree; otherwise use CWD.
+# This protects against the script being run from a stray directory and writing
+# the state file to the wrong .claude/.
+if command -v git >/dev/null 2>&1 && git rev-parse --show-toplevel >/dev/null 2>&1; then
+  TARGET_DIR=$(git rev-parse --show-toplevel)
+else
+  TARGET_DIR="$PWD"
+fi
+mkdir -p "$TARGET_DIR/.claude"
 
 # --- Write state file ---
 STARTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -72,11 +80,11 @@ started_at: "${STARTED_AT}"
 ${PROMPT}
 STATEFILE
 
-mv "$TMPFILE" .claude/ralph-loop.local.md
+mv "$TMPFILE" "$TARGET_DIR/.claude/ralph-loop.local.md"
 
 echo "Ralph Loop configured:"
 echo "  Completion promise: ${COMPLETION_PROMISE}"
 echo "  Max iterations: ${MAX_ITERATIONS} (0 = unlimited)"
-echo "  State file: .claude/ralph-loop.local.md"
+echo "  State file: $TARGET_DIR/.claude/ralph-loop.local.md"
 echo ""
 echo "The ralph-loop Stop hook will now intercept exit and feed the prompt back."

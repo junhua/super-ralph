@@ -1,6 +1,6 @@
 ---
 name: browser-verification
-description: "Use claude-in-chrome to verify web app features against acceptance criteria. Triggers when /super-ralph:verify is invoked."
+description: "Verify web app features in a real browser via claude-in-chrome against Gherkin acceptance criteria. Use when /super-ralph:verify is invoked, or when user mentions 'smoke test', 'verify deployment', 'test in browser', 'check preview URL', 'browser check', 'visual verify', 'verify PR', 'verify against acceptance criteria', 'UI verification', 'live preview', 'playwright test', 'check vercel preview'."
 ---
 
 # Browser Verification

@@ -1,6 +1,6 @@
 # Story Template
 
-> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md`.
+> **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
 
 Use this template for individual user stories within an epic. Each story is independently buildable via `/super-ralph:build-story #N` -- no separate plan step required.
 

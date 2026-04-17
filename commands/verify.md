@@ -18,6 +18,12 @@ Parse the user's input for:
 
 ## Workflow
 
+### Step 0: Load Project Config
+
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, first attempt auto-init by invoking the init command logic, then tell the user to run `/super-ralph:init` manually if auto-init fails.
+
+Extract at minimum: `$REPO` (for `gh` commands).
+
 ### Step 1: Load Browser-Verification Skill
 
 Invoke the `super-ralph:browser-verification` skill for browser interaction patterns, assertion techniques, and evidence capture.

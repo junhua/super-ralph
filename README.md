@@ -4,7 +4,7 @@
 
 # Super-Ralph
 
-> **v0.9.0** — Project-agnostic, design-first autonomous development. `/design` is the single entry point: it produces implementation-ready GitHub issues with embedded TDD tasks, Gherkin AC, and FE/BE sub-issues for concurrent development. Project-specific values loaded from `.claude/super-ralph-config.md`.
+> **v0.9.1** — Project-agnostic, design-first autonomous development. `/design` is the single entry point: it produces implementation-ready GitHub issues with embedded TDD tasks, Gherkin AC, and FE/BE sub-issues for concurrent development. Project-specific values loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
 
 Hit enter. Walk away. Come back to results.
 

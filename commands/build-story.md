@@ -47,7 +47,7 @@ Execute all phases in order. **NEVER ask for human input** — dispatch research
 
 ### Step 0a: Load Project Config
 
-Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, stop and tell the user to run `/super-ralph:init`.
+Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, first attempt auto-init by invoking the init command logic, then tell the user to run `/super-ralph:init` manually if auto-init fails.
 
 Extract these values for use in all subsequent steps:
 - `$REPO` — GitHub repo (e.g., `Forth-AI/work-ssot`)
@@ -70,7 +70,13 @@ Parse the STORY argument and build the context file.
 
 ```bash
 STORY_ID="$ISSUE_NUMBER"
-STORY_DIR="/tmp/super-ralph-story-$STORY_ID"
+# Prefer durable .claude/runs/ over /tmp/ — survives reboots and OS /tmp cleanup.
+# Fall back to /tmp/ only if the repo root isn't writable (e.g., sandboxed env).
+if [ -w "$(git rev-parse --show-toplevel)/.claude" ]; then
+  STORY_DIR="$(git rev-parse --show-toplevel)/.claude/runs/story-$STORY_ID"
+else
+  STORY_DIR="/tmp/super-ralph-story-$STORY_ID"
+fi
 mkdir -p "$STORY_DIR"
 
 # Fetch issue
@@ -164,10 +170,20 @@ Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 ### Step 1: Detect Resume State
 
-Check if this story has prior progress to resume from:
+Check if this story has prior progress to resume from. Resolve `STORY_DIR` by checking both the durable and legacy locations:
 
 ```bash
-STORY_DIR="/tmp/super-ralph-story-$STORY_ID"
+# New durable location (preferred)
+NEW_DIR="$(git rev-parse --show-toplevel)/.claude/runs/story-$STORY_ID"
+# Legacy /tmp/ location (fallback)
+OLD_DIR="/tmp/super-ralph-story-$STORY_ID"
+if [ -d "$NEW_DIR" ]; then
+  STORY_DIR="$NEW_DIR"
+elif [ -d "$OLD_DIR" ]; then
+  STORY_DIR="$OLD_DIR"
+else
+  STORY_DIR="$NEW_DIR"  # fresh start → use durable location
+fi
 ```
 
 | File exists | Meaning | Resume from |
@@ -245,7 +261,7 @@ Task tool:
     Read the story context: $STORY_DIR/context.md
 
     ## Instructions
-    Read the full planning workflow: /Users/junhua/.claude/plugins/super-ralph/commands/plan.md
+    Read the full planning workflow: ${CLAUDE_PLUGIN_ROOT}/commands/plan.md
     Follow it completely, with these specifics:
 
     1. **Explore the codebase** — Read CLAUDE.md, understand project structure, tech stack,
@@ -312,7 +328,7 @@ Task tool:
     The plan file is at: $PLAN_PATH
 
     ## Instructions
-    Read the full build workflow: /Users/junhua/.claude/plugins/super-ralph/commands/build.md
+    Read the full build workflow: ${CLAUDE_PLUGIN_ROOT}/commands/build.md
     Follow it completely, with these specifics:
 
     1. **Create worktree** — Use EnterWorktree with name "super-ralph/$STORY_SLUG".
@@ -406,7 +422,7 @@ Task tool:
     Branch: super-ralph/$STORY_SLUG
 
     ## Instructions
-    Read the full review-fix workflow: /Users/junhua/.claude/plugins/super-ralph/commands/review-fix.md
+    Read the full review-fix workflow: ${CLAUDE_PLUGIN_ROOT}/commands/review-fix.md
     Follow it completely, with these specifics:
 
     1. **Switch to the branch** in a worktree:
