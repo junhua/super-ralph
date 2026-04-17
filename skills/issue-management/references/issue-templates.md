@@ -738,6 +738,85 @@ When BE is ready:
 - [ ] PM CP4 sign-off obtained
 ````
 
+## [INT] -- Integration & Verification Sub-Issue
+
+Use for integration tasks within a [STORY]. Owns FE↔BE wiring, full user journey E2E tests, and deployment verification. Created by /design for every story.
+
+````markdown
+**Parent:** #[STORY_NUMBER]
+**Depends on:** [BE] #[BE_NUMBER], [FE] #[FE_NUMBER]
+
+## Scope
+- Replace FE mocks with real API client calls (from [FE] #[FE_NUMBER])
+- Implement Gherkin scenarios from parent [STORY] as runnable e2e tests
+- Verify deployed preview URL against full user journey via `/super-ralph:verify`
+
+## Gherkin User Journey
+See parent #[STORY_NUMBER] — Acceptance Criteria (Gherkin) section.
+
+## Integration Tasks
+
+### Task 0: Mock Swap
+**Progress check:** `! grep -r "mock[Feature]" $FE_DIR/src/app/[feature]` (mock imports removed from pages)
+**Files:** Modify `$FE_PAGES_DIR/[feature]/page.tsx`, delete `$FE_DIR/src/lib/mock/[feature].ts`
+1. Replace `mock[Feature]List` imports with `[feature]Api.list()` calls
+2. Run type check: `cd $FE_DIR && $RUNTIME run typecheck` — Expected: PASS
+3. Commit: `git commit -m "chore: swap [feature] mocks for real API"`
+
+### Task 1: E2E Tests (from Gherkin)
+**Progress check:** `test -f tests/e2e/[story-slug].test.ts && grep -c "test(" tests/e2e/[story-slug].test.ts` — Expected: ≥3
+**Files:** Modify `tests/e2e/[story-slug].test.ts`
+1. Implement each Gherkin scenario as a `test(...)` block — concrete setup, action, assertion
+2. Run: `$RUNTIME test tests/e2e/[story-slug].test.ts`
+3. Expected: PASS — all scenarios pass (3+ tests)
+4. Commit: `git commit -m "test: [feature] e2e green for all Gherkin scenarios"`
+
+## Verification Tasks
+
+### Task 2: Staging Smoke via `/super-ralph:verify`
+**Progress check:** verification report exists in `.claude/runs/verify-[story-slug]/report.md`
+**Files:** Run verify command, capture output
+1. Identify preview URL for the merged PR (from Vercel/preview provider)
+2. Run: `/super-ralph:verify <preview-url> --story #[STORY_NUMBER]`
+3. Expected: verifier returns GREEN for all Gherkin scenarios
+4. If RED: file a `[FIX]` issue referencing #[STORY_NUMBER] and note here
+
+### Task 3: Integration PR
+**Progress check:** PR open with `Closes #[INT_NUMBER]` in body
+1. Push branch, open PR with title `int: [feature] integration and e2e`
+2. Body includes: "Closes #[INT_NUMBER]" + verifier report summary
+3. Expected: CI green, PR links back to parent STORY
+
+## Completion Criteria
+- [ ] Mock data files deleted
+- [ ] `$RUNTIME test tests/e2e/[story-slug].test.ts` — 0 failures, ≥3 scenarios
+- [ ] `/super-ralph:verify` report is GREEN
+- [ ] All 3+ Gherkin scenarios pass on staging preview
+````
+
+### Example
+
+````markdown
+**Parent:** #241
+**Depends on:** [BE] #242, [FE] #243
+
+## Scope
+- Replace FE mocks with real pipeline API client
+- Run the 4 Gherkin scenarios (board renders, empty state, many deals, unauthorized) as e2e tests
+- Verify staging preview URL before marking done
+
+## Integration Tasks
+
+### Task 0: Mock Swap
+**Progress check:** `! grep -r "mock" $FE_DIR/src/app/pipeline`
+**Files:** Modify `$FE_PAGES_DIR/pipeline/page.tsx`, delete `$FE_DIR/src/lib/mock/pipeline.ts`
+...
+
+### Task 1: E2E Tests
+**Progress check:** `grep -c "test(" tests/e2e/pipeline.test.ts` → 4
+...
+````
+
 ## [QA] -- Test Verification
 
 Use for test verification tasks against acceptance criteria. Created per-module when approaching UAT.
