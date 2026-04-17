@@ -4,7 +4,7 @@
 
 # Super-Ralph
 
-> **v0.9.1** — Project-agnostic, design-first autonomous development. `/design` is the single entry point: it produces implementation-ready GitHub issues with embedded TDD tasks, Gherkin AC, and FE/BE sub-issues for concurrent development. Project-specific values loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
+> **v0.9.2** — Project-agnostic, design-first autonomous development. `/design` is the single entry point: it produces implementation-ready GitHub issues with embedded TDD tasks, Gherkin AC, and FE/BE sub-issues for concurrent development. Project-specific values loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
 
 Hit enter. Walk away. Come back to results.
 
@@ -15,7 +15,18 @@ Hit enter. Walk away. Come back to results.
 /plugin install super-ralph@junhua-plugins
 ```
 
-Then restart Claude Code. See the full command list at [`/super-ralph:help`](./commands/help.md).
+Then restart Claude Code. See the full command list at [`/super-ralph:help`](./commands/help.md) and the changelog in [CHANGELOG.md](./CHANGELOG.md).
+
+## Dependencies
+
+Super-ralph builds on other plugins. Declared in `plugin.json`:
+
+| Plugin | Required? | Why |
+|--------|-----------|-----|
+| `ralph-loop` | **required** | Stop hook that drives autonomous iteration |
+| `superpowers` | **required** | TDD, debugging, verification, parallel-agents skills |
+| `pr-review-toolkit` | optional | code-reviewer, silent-failure-hunter, pr-test-analyzer, type-design-analyzer, code-simplifier, comment-analyzer for `/review-fix` |
+| `claude-in-chrome` | optional | browser automation for `/verify` |
 
 ## What It Does
 
@@ -53,6 +64,7 @@ Hotfix:        repair --hotfix → review-fix → verify → finalise on main
 Release:       release (QA → Codex review → merge staging→main → tag)
 Quality:       review-design (validate issues against quality gates)
 Brainstorm:    brainstorm (research → CPO+CTO+CAIO → recommendations)
+Observability: status (runtime dashboard) / cleanup (prune stale state)
 ```
 
 ## Issue Taxonomy
@@ -78,6 +90,13 @@ Brainstorm:    brainstorm (research → CPO+CTO+CAIO → recommendations)
 | 4. Stories | 1 story-planner per story | Sonnet | Max 4 parallel |
 | 5. Issues | Create GitHub issues, set Project #9 fields | Opus | Sequential |
 | 6. Review | design-reviewer validates all issues | Sonnet | Sequential |
+
+**Hybrid-mode ralph loops** (`/build --mode hybrid`) additionally dispatch:
+
+| Agent | Role | Model |
+|-------|------|-------|
+| `spec-reviewer` | Adversarial spec-compliance gate after implementer | Haiku |
+| `code-quality-reviewer` | Correctness + readability + testing + security gate | Sonnet |
 
 ## Commands
 
@@ -131,6 +150,26 @@ Autonomous brainstorming with CPO/CTO/CAIO perspectives.
 /super-ralph:brainstorm "What should we build next?" --scope product
 ```
 
+### `/super-ralph:status` — RUNTIME DASHBOARD
+
+Inspect active ralph-loops, worktrees, open PRs, in-flight epics, stale state.
+
+```
+/super-ralph:status              # full dashboard
+/super-ralph:status --worktrees  # just worktrees
+/super-ralph:status --prs        # just open PRs on super-ralph/* branches
+```
+
+### `/super-ralph:cleanup` — PRUNE STALE STATE
+
+Safely remove old worktrees, run directories, and orphan branches.
+
+```
+/super-ralph:cleanup                        # interactive, 7-day age default
+/super-ralph:cleanup --dry-run              # list only, no delete
+/super-ralph:cleanup --age-days 14 --force  # auto-remove items >14 days
+```
+
 ### Other Commands
 
 | Command | Purpose |
@@ -142,7 +181,19 @@ Autonomous brainstorming with CPO/CTO/CAIO perspectives.
 | `/super-ralph:finalise` | Merge PR, close issues, cleanup |
 | `/super-ralph:e2e` | Execute entire epic with wave parallelism |
 | `/super-ralph:release` | Promote staging → main with QA gate |
+| `/super-ralph:init` | Generate `.claude/super-ralph-config.md` |
 | `/super-ralph:help` | Show full documentation |
+
+## Run State Durability
+
+Per-run state (context, progress, phase outputs) lives in:
+
+```
+.claude/runs/<kind>-<id>/         ← preferred: durable, survives reboots
+/tmp/super-ralph-<kind>-<id>/     ← legacy fallback for sandboxed envs
+```
+
+Resume detection reads both locations. `/super-ralph:status` surfaces the active runs and `/super-ralph:cleanup` prunes stale ones.
 
 ## SLICE Decomposition
 
@@ -207,37 +258,59 @@ Mapping: Feature→`describe()`, Background→`beforeEach()`, Scenario→`test()
 
 ```
 super-ralph/
-├── .claude-plugin/plugin.json
+├── .claude-plugin/plugin.json   ← version, dependencies
+├── CHANGELOG.md                 ← version history
 ├── agents/
 │   ├── browser-verifier.md
+│   ├── code-quality-reviewer.md ← NEW v0.9.2: hybrid-mode quality gate
 │   ├── issue-fixer.md
-│   ├── plan-reviewer.md
+│   ├── plan-reviewer.md         ← v0.9.2: adversarial posture
 │   ├── research-agent.md
-│   └── sme-brainstormer.md
+│   ├── sme-brainstormer.md
+│   └── spec-reviewer.md         ← NEW v0.9.2: adversarial spec gate
 ├── commands/
 │   ├── brainstorm.md
 │   ├── build-story.md
-│   ├── build.md
-│   ├── design.md            ← PRIMARY COMMAND (6-phase SADD)
+│   ├── build.md                 ← v0.9.2: thin skill shim (fixes print-bug)
+│   ├── cleanup.md               ← NEW v0.9.2: prune stale state
+│   ├── design.md                ← PRIMARY COMMAND (6-phase SADD)
 │   ├── e2e.md
 │   ├── finalise.md
 │   ├── help.md
-│   ├── plan.md              ← AD-HOC ONLY (FIX/CHORE/spikes)
+│   ├── init.md                  ← auto-generate project config
+│   ├── plan.md                  ← AD-HOC ONLY (FIX/CHORE/spikes)
 │   ├── release.md
 │   ├── repair.md
-│   ├── review-design.md     ← NEW: quality gate command
+│   ├── review-design.md         ← quality gate command
 │   ├── review-fix.md
+│   ├── status.md                ← NEW v0.9.2: runtime dashboard
 │   └── verify.md
-├── skills/
-│   ├── browser-verification/
-│   ├── issue-management/     ← [EPIC]/[STORY]/[FE]/[BE] taxonomy
-│   ├── product-brainstorm/
-│   ├── product-design/       ← SLICE, Gherkin, pre-decided implementation
-│   ├── ralph-planning/
-│   ├── repair-domains/
-│   └── review-fix-loop/
-└── README.md
+├── scripts/
+│   └── setup-ralph-loop.sh      ← v0.9.2: git-toplevel resolution
+└── skills/
+    ├── browser-verification/
+    ├── build/                   ← NEW v0.9.2: /build executor skill
+    ├── deployment-verification/ ← NEW v0.9.2: single-source CD polling
+    ├── issue-management/
+    ├── product-brainstorm/
+    ├── product-design/
+    ├── ralph-planning/
+    ├── repair-domains/
+    └── review-fix-loop/
 ```
+
+## What's New in v0.9.2
+
+Major effectiveness pass — see [CHANGELOG.md](./CHANGELOG.md) for details. Highlights:
+
+- **Portability**: replaced all hardcoded `/Users/...` paths with `${CLAUDE_PLUGIN_ROOT}`
+- **Quality gates**: created `spec-reviewer` and `code-quality-reviewer` agents that hybrid-mode ralph loops were referencing but didn't exist
+- **Durable state**: `.claude/runs/` replaces `/tmp/` (survives reboots, version-trackable)
+- **`/status`** and **`/cleanup`** commands for runtime visibility and maintenance
+- **`deployment-verification`** skill consolidates 4 duplicated CD-polling bash blocks
+- **Plugin dependencies** now declared in `plugin.json`
+- **Skill triggers** expanded for broader keyword activation
+- **`/super-ralph:build` print-bug** fully fixed via dedicated executor skill
 
 ## License
 

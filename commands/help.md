@@ -11,7 +11,7 @@ Display comprehensive help for the super-ralph plugin.
 ## Output the following help text:
 
 ```
-# Super-Ralph v0.9.1 — Design-First Autonomous Development
+# Super-Ralph v0.9.2 — Design-First Autonomous Development
 
 Super-ralph is a project-agnostic, design-first autonomous development plugin.
 /design is the single entry point: it produces implementation-ready GitHub issues
