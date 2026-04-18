@@ -1028,12 +1028,14 @@ Dispatch a design-reviewer sub-agent inline by invoking `/super-ralph:review-des
 Task tool:
   model: sonnet
   max_turns: 30
-  description: "Review design quality for EPIC #<epic-number>"
+  description: "Review design quality for EPIC <target>"
   prompt: |
     You are a design-reviewer agent.
 
     Read the review-design command: ${CLAUDE_PLUGIN_ROOT}/commands/review-design.md
-    Follow it completely for EPIC #<epic-number>.
+    Follow it completely for:
+      - `#<epic-number>` when `--local` was NOT set
+      - `docs/epics/<slug>.md` when `--local` WAS set
 
     Run all PM Gates, Developer Gates, and Cross-Issue Checks.
     Return a structured verdict: READY / CONDITIONAL / BLOCKED.
@@ -1079,13 +1081,28 @@ Output the final report:
 [Findings summary if any]
 
 ## Launch Commands
+
+**When `--local` was set** (launch via file path):
+```
 Wave 1 (parallel):
-- `/super-ralph:build-story #<story-1-number>`
-- `/super-ralph:build-story #<story-3-number>`
+- /super-ralph:build-story docs/epics/<slug>.md#story-1
+- /super-ralph:build-story docs/epics/<slug>.md#story-3
 
 Wave 2 (after Wave 1):
-- `/super-ralph:build-story #<story-2-number>`
-- `/super-ralph:build-story #<story-4-number>`
+- /super-ralph:build-story docs/epics/<slug>.md#story-2
+- /super-ralph:build-story docs/epics/<slug>.md#story-4
+```
+
+**When `--local` was NOT set** (launch via issue number):
+```
+Wave 1 (parallel):
+- /super-ralph:build-story #<story-1-number>
+- /super-ralph:build-story #<story-3-number>
+
+Wave 2 (after Wave 1):
+- /super-ralph:build-story #<story-2-number>
+- /super-ralph:build-story #<story-4-number>
+```
 ```
 
 ---
