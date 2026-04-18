@@ -77,6 +77,50 @@ Extract these values for use in all subsequent steps:
 
 ### Step 0b: Load Epic Context
 
+**Mode detection:**
+```bash
+MODE=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh detect-mode "$EPIC_REF")
+```
+Branch:
+- `local` (arg is `docs/epics/<slug>.md`) → run the **Local variant** below.
+- `github` (arg is numeric or `#N`) → run the **GitHub variant** (existing steps 1-7).
+- `description` → error: `"/super-ralph:e2e requires a #EPIC_NUMBER or docs/epics/<file>.md, not a free-form description."`
+
+**Local variant:**
+
+1. Read `$EPIC_REF` into memory.
+2. Validate it contains `<!-- super-ralph: local-mode -->`. If not: `"$EPIC_REF is not a local-mode epic."` → exit.
+3. `EPIC_ID=$(basename "$EPIC_REF" .md)`; `EPIC_TITLE` = first `# EPIC:` line with prefix stripped.
+4. List stories:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh list-stories "$EPIC_REF"
+   ```
+   Each line is `story-N <title> <STATUS>`. Use `story-N` as the synthetic number.
+5. Run directory:
+   ```bash
+   if [ -w "$(git rev-parse --show-toplevel)/.claude" ]; then
+     E2E_DIR="$(git rev-parse --show-toplevel)/.claude/runs/e2e-${EPIC_ID}"
+   else
+     E2E_DIR="/tmp/super-ralph-e2e-${EPIC_ID}"
+   fi
+   mkdir -p "$E2E_DIR/stories"
+   ```
+6. Write `$E2E_DIR/epic-context.md` from the file's header sections (Goal, Stories priority table, Wave Assignments).
+7. Per-story briefs:
+   ```bash
+   while read -r line; do
+     STORY_NUM=$(echo "$line" | sed -E 's/^story-([0-9]+).*/\1/')
+     mkdir -p "$E2E_DIR/stories/story-${STORY_NUM}"
+     ${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh extract-substory "$EPIC_REF" "$STORY_NUM" story \
+       > "$E2E_DIR/stories/story-${STORY_NUM}/brief.md"
+   done < <(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh list-stories "$EPIC_REF")
+   ```
+8. Report: `"Epic $EPIC_REF (local) — $STORY_COUNT stories, $PENDING_COUNT pending."`
+
+Skip the remainder of Step 0b for local mode. For GitHub mode, follow the steps below.
+
+**GitHub variant:**
+
 1. **Fetch the epic issue:**
    ```bash
    gh issue view $EPIC_NUMBER --repo $REPO --json number,title,body,labels,milestone,state
@@ -155,9 +199,15 @@ Extract these values for use in all subsequent steps:
 ### Step 1: Filter Actionable Stories
 
 Remove stories that don't need execution:
-- **Already closed**: Skip (work already done)
-- **Already has a merged PR**: Skip
-- **Already has an open PR**: Include but skip plan+build phases (resume from review-fix)
+
+- **GitHub mode:**
+  - Already closed → skip (work already done)
+  - Has merged PR → skip
+  - Has open PR → include but skip plan+build phases (resume from review-fix)
+- **Local mode:**
+  - Status `COMPLETED` → skip
+  - Status `IN_PROGRESS` / `READY` → include (resume detection in build-story picks up the right phase)
+  - Status `PENDING` → include
 
 Write the filtered list to `$E2E_DIR/actionable-stories.md`.
 
@@ -247,13 +297,23 @@ For each story in the current wave, dispatch a **Story Executor** sub-agent that
 
 Each story executor uses the same temp-file protocol as `/super-ralph:build-story`, but writes to the e2e temp directory so the orchestrator can monitor progress.
 
+Compute the executor argument depending on mode:
+
+```bash
+if [ "$MODE" = "local" ]; then
+  EXECUTOR_ARG="${EPIC_REF}#story-${STORY_NUM}"
+else
+  EXECUTOR_ARG="#${STORY_NUMBER}"
+fi
+```
+
 ```
 Task tool:
   model: opus
   max_turns: 200
-  description: "Execute Story #$STORY_NUMBER for Epic #$EPIC_NUMBER"
+  description: "Execute Story $EXECUTOR_ARG for Epic $EPIC_REF"
   prompt: |
-    You are a Story Executor for Epic #$EPIC_NUMBER, Story #$STORY_NUMBER.
+    You are a Story Executor for Epic $EPIC_REF, Story $EXECUTOR_ARG.
 
     Follow the build-story workflow from:
       ${CLAUDE_PLUGIN_ROOT}/commands/build-story.md
@@ -325,7 +385,14 @@ For each completed story **one at a time** (sequential to avoid merge conflicts)
      echo "WARNING: Staging deployment unhealthy after merging Story #$STORY_NUMBER"
    fi
    ```
-4. Close related GitHub issues (same logic as finalise.md Step 2b)
+4. Close related GitHub issues (only in GitHub mode — same logic as finalise.md Step 2b):
+   ```bash
+   if [ "$MODE" = "github" ]; then
+     gh issue close $STORY_NUMBER --comment "Shipped in PR #$PR_NUMBER" --repo $REPO || true
+     # (project-board move + parent epic auto-close — see finalise.md)
+   fi
+   # In local mode, /super-ralph:build-story already flipped Status=COMPLETED in the epic file.
+   ```
 5. Update progress tracker
 6. Report: `"Finalised Story #$STORY_NUMBER — PR #$PR_NUMBER merged into staging — Deployment: [HEALTHY|FAILED]"`
 
@@ -336,10 +403,15 @@ For each completed story **one at a time** (sequential to avoid merge conflicts)
 After all stories in the wave are finalised:
 1. Update plan files (mark tasks as completed)
 2. Update epic file (mark stories as completed)
-3. Commit documentation updates:
+3. Commit documentation updates (mode-aware):
    ```bash
-   git add docs/plans/ docs/epics/
-   git commit -m "docs: mark Wave $WAVE_NUM stories as completed for Epic #$EPIC_NUMBER"
+   if [ "$MODE" = "github" ]; then
+     git add docs/plans/ docs/epics/
+     git commit -m "docs: mark Wave $WAVE_NUM stories as completed for Epic #$EPIC_NUMBER"
+   else
+     git add docs/epics/
+     git commit -m "docs: mark Wave $WAVE_NUM stories as completed for Epic $EPIC_ID"
+   fi
    git push origin staging
    ```
 
