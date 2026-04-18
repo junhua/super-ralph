@@ -4,7 +4,7 @@
 
 # Super-Ralph
 
-> **v0.10.0** — Project-agnostic, design-first autonomous development. `/design` produces 4 issues per story: `[STORY]` + `[BE]` + `[FE]` + `[INT]` (new), with mandatory User Journey, full Gherkin ≥3 scenarios including `[SECURITY]`, and mandatory TDD Tasks. Nine enforcement gates in `/review-design` block non-compliant designs. Project-specific values loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
+> **v0.11.0** — Local mode + Improve-design. `/design --local` writes the entire epic (including every `[STORY]`/`[BE]`/`[FE]`/`[INT]` body) into a single markdown file at `docs/epics/<slug>.md` and skips GitHub issue creation. `/build-story`, `/e2e`, `/review-design`, and `/build` all accept path-based arguments (`docs/epics/<slug>.md#story-N`) and auto-detect local vs GitHub. New `/super-ralph:improve-design "<prompt>"` resolves the target epic from a single natural-language prompt and applies conservative structured edits with shipped-immutability safety. All existing GitHub workflows are unchanged — local mode is additive and default off.
 
 Hit enter. Walk away. Come back to results.
 
@@ -56,15 +56,18 @@ For ad-hoc work ([FIX], [CHORE], spikes), use `/plan` → `/build` instead.
 ## Pipelines
 
 ```
-Design-first:  design → build-story → review-fix → verify → finalise
-Epic:          e2e (parallel build-story per story, then release)
-Ad-hoc:        plan → build → review-fix → verify → finalise
-Reactive:      repair → review-fix → verify → finalise
-Hotfix:        repair --hotfix → review-fix → verify → finalise on main
-Release:       release (QA → Codex review → merge staging→main → tag)
-Quality:       review-design (validate issues against quality gates)
-Brainstorm:    brainstorm (research → CPO+CTO+CAIO → recommendations)
-Observability: status (runtime dashboard) / cleanup (prune stale state)
+Design-first (GitHub):     design → build-story → review-fix → verify → finalise
+Design-first (local file): design --local → build-story <path> → review-fix → verify → finalise
+Design-adjust:             improve-design → review-design → (re-run build-story for changed stories)
+Epic (GitHub):             e2e <epic#> (parallel build-story per story, then release)
+Epic (local):              e2e <epic.md> (parallel build-story per story-N, then release)
+Ad-hoc:                    plan → build → review-fix → verify → finalise
+Reactive:                  repair → review-fix → verify → finalise
+Hotfix:                    repair --hotfix → review-fix → verify → finalise on main
+Release:                   release (QA → Codex review → merge staging→main → tag)
+Quality:                   review-design (validate issues against quality gates)
+Brainstorm:                brainstorm (research → CPO+CTO+CAIO → recommendations)
+Observability:             status (runtime dashboard) / cleanup (prune stale state)
 ```
 
 ## Issue Taxonomy
@@ -103,35 +106,55 @@ Observability: status (runtime dashboard) / cleanup (prune stale state)
 
 ### `/super-ralph:design` — THE PRIMARY COMMAND
 
-Create implementation-ready epics with stories, Gherkin AC, TDD tasks, and FE/BE sub-issues.
+Create implementation-ready epics with stories, Gherkin AC, TDD tasks, and FE/BE/INT sub-issues.
 
 ```
 /super-ralph:design "Admin governance hardening — RBAC, user lifecycle, batch ops"
 /super-ralph:design "Finance AP invoices and payment workflow"
+/super-ralph:design "Internal spike: log aggregation prototype" --local
 ```
 
 **What happens:** 6-phase SADD flow — reads product docs + explores codebase, dispatches research + SME agents, applies SLICE decomposition to define stories, dispatches per-story planner agents (Sonnet) that read the codebase and produce exact TDD tasks, creates GitHub issues with Project #9 fields, then self-reviews with `/review-design`.
 
-### `/super-ralph:review-design` — QUALITY GATE
+**`--local` mode (new in v0.11.0):** Writes the entire epic + all `[STORY]`/`[BE]`/`[FE]`/`[INT]` bodies into a single markdown file at `docs/epics/<slug>.md`. Skips GitHub issue creation entirely. Downstream commands operate on the file path instead of issue numbers — useful for iterative design, spikes, and internal work that doesn't belong on the shared roadmap.
 
-Validate all issues in an EPIC against quality gates before development starts.
+### `/super-ralph:improve-design` — ADJUST EXISTING DESIGN
+
+Make targeted changes to an existing design (local file or GitHub EPIC) from a single prompt.
 
 ```
-/super-ralph:review-design 479              # Review EPIC #479
-/super-ralph:review-design 479 --fix        # Auto-fix mechanical issues
-/super-ralph:review-design 479 --strict     # Zero-tolerance mode
+/super-ralph:improve-design "Add a SECURITY scenario to Story 1 of the module catalog epic"
+/super-ralph:improve-design "Split Story 5 in docs/epics/2026-04-18-foo.md into list + detail"
+/super-ralph:improve-design "Drop Story 3 from epic #531 — out of scope"
+```
+
+**What happens:** Autonomously resolves the target epic from the prompt (explicit path/number OR fuzzy match against available epics, with `AskUserQuestion` disambiguation when uncertain). Interprets feedback into structured changes (ADD_STORY / REMOVE_STORY / SPLIT_STORY / MERGE_STORIES / EDIT_AC / EDIT_TDD / EDIT_SHARED_CONTRACT / EDIT_SCOPE / RE_WAVE / EDIT_METADATA). Applies up to 3 edits in parallel. Re-validates via `/review-design`. **Shipped stories are immutable** — refuses edits to COMPLETED stories or CLOSED issues.
+
+### `/super-ralph:review-design` — QUALITY GATE
+
+Validate all issues in an EPIC (or a local epic file) against quality gates before development starts.
+
+```
+/super-ralph:review-design 479                                  # Review GitHub EPIC #479
+/super-ralph:review-design docs/epics/2026-04-18-foo.md         # Review local epic file
+/super-ralph:review-design 479 --fix                            # Auto-fix mechanical issues
+/super-ralph:review-design 479 --strict                         # Zero-tolerance mode
 ```
 
 **What happens:** Fetches EPIC + all child issues, dispatches parallel review agents checking PM gates (persona, outcomes, Gherkin coverage), developer gates (TDD tasks, no pseudocode, exact paths), and cross-issue gates (shared file conflicts, dependency DAG). Returns **READY** / **CONDITIONAL** / **BLOCKED** verdict.
 
 ### `/super-ralph:build-story`
 
-Execute a story end-to-end. **Skips plan phase** when TDD tasks are in the issue body.
+Execute a story end-to-end. **Skips plan phase** when TDD tasks are in the issue body (GitHub) or embedded in the epic file (local).
 
 ```
-/super-ralph:build-story #42
+/super-ralph:build-story #42                                     # GitHub issue
+/super-ralph:build-story docs/epics/foo.md#story-3               # Local epic — single story
+/super-ralph:build-story "Add JWT auth endpoints"                # Free-text description
 /super-ralph:build-story #42 --skip-verify --skip-finalise
 ```
+
+Refuses to rebuild stories marked `COMPLETED` in a local epic — shipped work is immutable.
 
 ### `/super-ralph:plan` — AD-HOC ONLY
 
@@ -300,18 +323,20 @@ super-ralph/
     └── review-fix-loop/
 ```
 
-## What's New in v0.9.2
+## What's New in v0.11.0
 
-Major effectiveness pass — see [CHANGELOG.md](./CHANGELOG.md) for details. Highlights:
+Local mode + autonomous design adjustment — see [CHANGELOG.md](./CHANGELOG.md) for details. Highlights:
 
-- **Portability**: replaced all hardcoded `/Users/...` paths with `${CLAUDE_PLUGIN_ROOT}`
-- **Quality gates**: created `spec-reviewer` and `code-quality-reviewer` agents that hybrid-mode ralph loops were referencing but didn't exist
-- **Durable state**: `.claude/runs/` replaces `/tmp/` (survives reboots, version-trackable)
-- **`/status`** and **`/cleanup`** commands for runtime visibility and maintenance
-- **`deployment-verification`** skill consolidates 4 duplicated CD-polling bash blocks
-- **Plugin dependencies** now declared in `plugin.json`
-- **Skill triggers** expanded for broader keyword activation
-- **`/super-ralph:build` print-bug** fully fixed via dedicated executor skill
+- **`/design --local`**: full epic + all `[STORY]`/`[BE]`/`[FE]`/`[INT]` bodies written to a single `docs/epics/<slug>.md` file. No GitHub issues created.
+- **Path-based invocation**: `/build-story`, `/e2e`, `/review-design`, `/build` all accept `docs/epics/<slug>.md[#story-N]` and auto-detect mode.
+- **`/super-ralph:improve-design "<prompt>"`**: single-prompt command that autonomously resolves the target epic (explicit or fuzzy-matched with `AskUserQuestion` disambiguation), interprets feedback into structured changes, applies edits, and re-validates via `/review-design`.
+- **Shipped-immutability**: Stories with `Status: COMPLETED` (local) or CLOSED `[STORY]` issues (GitHub) are refused by both `/improve-design` and `/build-story`.
+- **Shared parser** (`scripts/parse-local-epic.sh`): POSIX-portable awk implementation with 6 subcommands, used by all 5 commands for consistent anchor parsing. Covered by 20 fixture-based test assertions.
+
+## What's New in v0.9.2 – v0.10.0
+
+- **v0.10.0**: `[INT]` sub-issue type for integration + E2E + deployment verification, mandatory User Journey + Test Plan + 9 enforcement gates in `/review-design`
+- **v0.9.2**: Portability (`${CLAUDE_PLUGIN_ROOT}`), quality-gate agents, durable `.claude/runs/`, `/status`, `/cleanup`, `deployment-verification` skill, plugin dependencies, build print-bug fix
 
 ## License
 
