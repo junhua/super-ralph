@@ -1,5 +1,29 @@
 # Super-Ralph Changelog
 
+## v0.11.0 — Local Mode + Improve-Design (2026-04-18)
+
+### Added
+- `/super-ralph:design --local` flag — writes the full epic + all stories into a single markdown file at `docs/epics/<slug>.md` and SKIPS GitHub issue creation entirely.
+- Path-based invocation for downstream commands:
+  - `/super-ralph:build-story docs/epics/<slug>.md#story-N`
+  - `/super-ralph:e2e docs/epics/<slug>.md`
+  - `/super-ralph:review-design docs/epics/<slug>.md`
+  - `/super-ralph:build docs/epics/<slug>.md#story-N` (and `#story-N-<be|fe|int>` for specific sub-body)
+- New command `/super-ralph:improve-design "<prompt>"` — autonomously resolves the target epic (local or GitHub) from a single natural-language prompt, interprets feedback into structured changes (add/remove/split/merge/edit_ac/edit_tdd/edit_scope/re_wave/edit_metadata), applies conservative edits, and re-validates via `/review-design`.
+- Shared parser `scripts/parse-local-epic.sh` with subcommands `detect-mode`, `list-stories`, `extract-story`, `extract-substory`, `get-status`, `set-status` (POSIX-portable awk, works on BSD awk on macOS).
+- Test fixtures and assertion suite: `test/fixtures/sample-local-epic.md`, `test/fixtures/completed-story-epic.md`, `test/test-parse-local-epic.sh` (20 assertions).
+
+### Safety
+- `/improve-design` refuses to edit stories with `Status: COMPLETED` (local) or a CLOSED `[STORY]` issue (GitHub).
+- `/build-story` also refuses `Status: COMPLETED` stories in local mode.
+- Removed stories close with `reason: not_planned` on GitHub (no deletion) and leave numbering holes in local files (preserves cross-references).
+- Target disambiguation uses `AskUserQuestion` when confidence is not high; no silent guessing.
+- `/design --local` refuses to overwrite an existing `docs/epics/<slug>.md`.
+
+### Notes
+- All existing GitHub-mode workflows are unchanged. Local mode is additive and default off.
+- No migration needed for existing open epics.
+
 ## v0.10.0 — [INT] Sub-Issue + Gate Enforcement (2026-04-17)
 
 ### Added
