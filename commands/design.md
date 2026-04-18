@@ -16,6 +16,11 @@ Translate product vision, business goals, or user feedback into implementation-r
 Parse the user's input for:
 - **Feature or goal description** (required): What to design — can be a feature idea, business goal, user feedback, or OKR
 - **--output** (optional): Output path (default: `docs/epics/YYYY-MM-DD-<slug>.md`)
+- **--local** (optional, boolean): Produce a self-contained local epic file; SKIP GitHub issue creation entirely. Downstream commands (`/build-story`, `/e2e`, `/review-design`) must then be invoked with the epic file path rather than an issue number. Default: false.
+
+When `--local` is set:
+- Resolve the target path to `docs/epics/YYYY-MM-DD-<slug>.md` (same rules as default).
+- If the file already exists, EXIT with `"Epic file already exists at <path>. Use /super-ralph:improve-design to modify, or delete the file first."` — do not overwrite.
 
 ## Workflow — 6-Phase SADD Flow
 
