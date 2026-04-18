@@ -11,7 +11,7 @@ Display comprehensive help for the super-ralph plugin.
 ## Output the following help text:
 
 ```
-# Super-Ralph v0.9.2 — Design-First Autonomous Development
+# Super-Ralph v0.11.0 — Design-First Autonomous Development
 
 Super-ralph is a project-agnostic, design-first autonomous development plugin.
 /design is the single entry point: it produces implementation-ready GitHub issues
@@ -53,14 +53,17 @@ concurrent development. Project-specific values are loaded from
 
 ## Pipelines
 
-  Design-first:  design → build-story → review-fix → verify → finalise
-  Epic:          e2e (parallel build-story per story, then release)
-  Ad-hoc:        plan → build → review-fix → verify → finalise
-  Reactive:      repair → review-fix → verify → finalise
-  Hotfix:        repair --hotfix → review-fix → verify → finalise on main
-  Release:       release (QA → Codex review → merge staging→main → tag)
-  Quality:       review-design (validate all issues against quality gates)
-  Brainstorm:    brainstorm (research → CPO+CTO+CAIO → recommendations)
+  Design-first (GitHub):     design → build-story → review-fix → verify → finalise
+  Design-first (local file): design --local → build-story <path> → review-fix → verify → finalise
+  Design-adjust:             improve-design → review-design → (re-run build-story for changed stories)
+  Epic (GitHub):             e2e <epic#> (parallel build-story per story, then release)
+  Epic (local):              e2e <epic.md> (parallel build-story per story-N, then release)
+  Ad-hoc:                    plan → build → review-fix → verify → finalise
+  Reactive:                  repair → review-fix → verify → finalise
+  Hotfix:                    repair --hotfix → review-fix → verify → finalise on main
+  Release:                   release (QA → Codex review → merge staging→main → tag)
+  Quality:                   review-design (validate all issues against quality gates)
+  Brainstorm:                brainstorm (research → CPO+CTO+CAIO → recommendations)
 
 ## Sub-Agent Architecture (SADD)
 
@@ -79,7 +82,7 @@ concurrent development. Project-specific values are loaded from
 
 ## Commands
 
-### /super-ralph:design <feature-or-goal> [--output PATH]
+### /super-ralph:design <feature-or-goal> [--output PATH] [--local]
 
   THE PRIMARY COMMAND. Creates implementation-ready epics with:
   - [EPIC] issue with PM Summary, execution plan, dependency DAG
@@ -90,11 +93,16 @@ concurrent development. Project-specific values are loaded from
   6-phase SADD flow: context → research → epic → story planning → issues → review.
   Stories are immediately buildable — no /plan step needed.
 
+  --local: Write the full epic+stories into docs/epics/<slug>.md with no GitHub
+           issues created. Downstream commands (build-story, e2e, review-design)
+           then operate on the file path instead of an issue number.
+
   Example:
     /super-ralph:design "Admin governance hardening — RBAC, user lifecycle, batch ops"
     /super-ralph:design "Finance AP invoices and payment workflow"
+    /super-ralph:design "Internal spike: log aggregation prototype" --local
 
-### /super-ralph:review-design <EPIC_NUMBER> [--fix] [--strict]
+### /super-ralph:review-design <EPIC_NUMBER | docs/epics/<slug>.md> [--fix] [--strict]
 
   Validate design quality before development starts. Checks 3 tiers of gates:
 
@@ -123,7 +131,7 @@ concurrent development. Project-specific values are loaded from
 
   Input formats:
     /super-ralph:build-story #42                        # GitHub issue number
-    /super-ralph:build-story docs/epics/gl.md#story-3   # Epic story reference
+    /super-ralph:build-story docs/epics/gl.md#story-3   # Local epic — single story
     /super-ralph:build-story "Add JWT auth endpoints"   # Description string
 
 ### /super-ralph:plan <feature> [--mode auto|standard|hybrid] [--story EPIC#STORY]
@@ -150,9 +158,28 @@ concurrent development. Project-specific values are loaded from
     /super-ralph:brainstorm "Finance module usability"
     /super-ralph:brainstorm "What should we build next?" --scope product
 
-### /super-ralph:build <plan-path> [--max-iterations N]
+### /super-ralph:improve-design "<prompt>"
+
+  Adjust an existing design (local file or GitHub EPIC) from a single prompt.
+  Autonomously resolves the target epic from the prompt, interprets the feedback,
+  applies conservative structured edits (add/remove/split/merge/edit_ac/edit_tdd/
+  edit_scope/re_wave/edit_metadata), and re-validates via /review-design.
+
+  Shipped stories (Status=COMPLETED or CLOSED issue) are immutable — the command
+  refuses edits and tells you to cut a new story instead.
+
+  Example:
+    /super-ralph:improve-design "Add a SECURITY scenario to Story 1 of the module catalog epic"
+    /super-ralph:improve-design "Split Story 5 in docs/epics/2026-04-18-foo.md into list + detail"
+    /super-ralph:improve-design "Drop Story 3 from epic #531 — out of scope"
+
+### /super-ralph:build <plan-path | epic.md#story-N> [--max-iterations N]
 
   Execute a plan autonomously via ralph-loop.
+
+  Epic-section invocation:
+    /super-ralph:build docs/epics/2026-04-18-foo.md#story-3      # whole story (BE+FE)
+    /super-ralph:build docs/epics/2026-04-18-foo.md#story-3-be   # just backend
 
 ### /super-ralph:repair <#issue|description> [--hotfix] [--skip-verify]
 
@@ -172,9 +199,12 @@ concurrent development. Project-specific values are loaded from
 
   Merge PR into staging, close issues, cleanup worktrees.
 
-### /super-ralph:e2e EPIC_NUMBER [--max-parallel N] [--skip-release]
+### /super-ralph:e2e <EPIC_NUMBER | docs/epics/<slug>.md> [--max-parallel N] [--skip-release]
 
   Execute an entire epic end-to-end with wave-based parallelism.
+
+  Local mode:
+    /super-ralph:e2e docs/epics/2026-04-18-foo.md
 
 ### /super-ralph:release [--milestone NAME] [--tag VERSION]
 

@@ -54,20 +54,29 @@ Extract these values for use in all subsequent steps:
 
 ### Step 1: Resolve EPIC
 
-Fetch the EPIC issue and locate the epic document.
-
+**Mode detection:**
 ```bash
-# Fetch EPIC issue
-gh issue view $EPIC_NUMBER --repo $REPO --json number,title,body,labels,milestone,state
+MODE=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh detect-mode "$EPIC_REF")
+```
 
-# Extract epic doc path from issue body
-EPIC_DOC=$(gh issue view $EPIC_NUMBER --repo $REPO --json body --jq '.body' \
+**GitHub mode** (existing behavior):
+```bash
+gh issue view $EPIC_REF --repo $REPO --json number,title,body,labels,milestone,state
+EPIC_DOC=$(gh issue view $EPIC_REF --repo $REPO --json body --jq '.body' \
   | grep -oE 'docs/epics/[a-zA-Z0-9._-]+\.md' | head -1)
 ```
 
-Read the EPIC issue body and the epic document file. Extract:
+**Local mode:**
+```bash
+EPIC_DOC="$EPIC_REF"
+grep -q '<!-- super-ralph: local-mode -->' "$EPIC_DOC" \
+  || { echo "$EPIC_DOC is not a local-mode epic."; exit 1; }
+EPIC_TITLE=$(grep -m1 '^# EPIC:' "$EPIC_DOC" | sed -E 's/^# EPIC: //')
+```
+
+Read the EPIC (issue body in GitHub mode, file in local mode) and extract:
 - EPIC title and goal
-- Story list with issue numbers
+- Story list with identifiers (issue numbers in GitHub mode, `story-N` synthetic IDs in local mode)
 - Execution plan (waves, AI-hours)
 - PM Summary (priority table, decision points)
 
@@ -75,12 +84,12 @@ Read the EPIC issue body and the epic document file. Extract:
 
 ### Step 2: Load All Sub-Issues
 
-Fetch all sub-issues (STORYs + FE/BE subs) linked to this EPIC.
+**GitHub mode:** fetch all sub-issues (STORYs + BE/FE/INT) linked to this EPIC.
 
 ```bash
 # List all issues that reference this EPIC as parent
 gh issue list --repo $REPO --state all --json number,title,body,labels \
-  --jq "[.[] | select(.body | test(\"Parent:?\\s*#$EPIC_NUMBER\"; \"i\"))]"
+  --jq "[.[] | select(.body | test(\"Parent:?\\s*#$EPIC_REF\"; \"i\"))]"
 ```
 
 For each [STORY] issue found, also fetch its [BE] and [FE] sub-issues:
@@ -90,6 +99,21 @@ For each [STORY] issue found, also fetch its [BE] and [FE] sub-issues:
 gh issue list --repo $REPO --state all --json number,title,body,labels \
   --jq "[.[] | select(.body | test(\"Parent:?\\s*#$STORY_NUMBER\"; \"i\"))]"
 ```
+
+**Local mode:** build a synthetic tree from the epic file sections:
+
+```bash
+while read -r line; do
+  STORY_NUM=$(echo "$line" | sed -E 's/^story-([0-9]+).*/\1/')
+  STORY_BODY=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh extract-substory "$EPIC_DOC" "$STORY_NUM" story)
+  BE_BODY=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh   extract-substory "$EPIC_DOC" "$STORY_NUM" be)
+  FE_BODY=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh   extract-substory "$EPIC_DOC" "$STORY_NUM" fe)
+  INT_BODY=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh  extract-substory "$EPIC_DOC" "$STORY_NUM" int)
+  # Treat each body as a virtual issue with number "story-N-<kind>"
+done < <(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh list-stories "$EPIC_DOC")
+```
+
+For every gate reference to "issue number" below, substitute the local anchor `story-N-<kind>`. All gate rules (STORY-G1..3, BE-G1..2, FE-G1..2, INT-G1..2) apply unchanged because they are pure text matches on body content.
 
 Build a complete issue tree:
 
@@ -377,16 +401,18 @@ If `--fix` is passed, apply conservative fixes only:
 - Dependency graph (architectural decision)
 
 **Process:**
-1. For each auto-fixable finding, edit the GitHub issue body:
+1. For each auto-fixable finding, apply the fix:
+   - **GitHub mode:**
+     ```bash
+     gh issue edit <number> --body "<fixed body>" --repo $REPO
+     ```
+   - **Local mode:** splice the fix into `$EPIC_DOC` using the `Edit` tool against the relevant `#### [BE|FE|INT|STORY]` sub-section. Use `${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh extract-substory` to preview the current content, then issue an `Edit` call with the correct `old_string`/`new_string`.
+2. If the fix involves the epic doc header (either mode), edit the file and commit:
    ```bash
-   gh issue edit <number> --body "<fixed body>" --repo $REPO
-   ```
-2. If the fix involves the epic doc, edit the file and commit:
-   ```bash
-   git add docs/epics/<file>
+   git add $EPIC_DOC
    git commit -m "fix(design): [what was fixed]"
    ```
-3. Mark the finding as FIXED in the report
+3. Mark the finding as FIXED in the report.
 
 ---
 
@@ -408,22 +434,18 @@ All stories pass PM and Developer gates. No cross-issue conflicts detected.
 #### Wave 1 (start immediately, parallel)
 | Story | Command | AI-Hours |
 |-------|---------|----------|
-| Story 1: [Title] | `/super-ralph:build-story #<N>` | Xh |
-| Story 3: [Title] | `/super-ralph:build-story #<N>` | Yh |
+| Story 1: [Title] | `/super-ralph:build-story <target>` | Xh |
+| Story 3: [Title] | `/super-ralph:build-story <target>` | Yh |
 
-#### Wave 2 (after Wave 1 completes)
-| Story | Command | AI-Hours |
-|-------|---------|----------|
-| Story 2: [Title] | `/super-ralph:build-story #<N>` | Xh |
-
-#### Wave 3 (after Wave 2 completes)
-| Story | Command | AI-Hours |
-|-------|---------|----------|
-| Story 4: [Title] | `/super-ralph:build-story #<N>` | Xh |
+[additional waves as needed]
 
 **Total AI-Hours:** Zh
 **Critical Path:** Story 1 --> Story 2 (Xh)
 ```
+
+In launch commands, `<target>` is:
+- **GitHub mode:** `#<issue-number>` (e.g., `/super-ralph:build-story #531`)
+- **Local mode:** `docs/epics/<slug>.md#story-N` (e.g., `/super-ralph:build-story docs/epics/2026-04-18-foo.md#story-1`)
 
 #### CONDITIONAL — Some stories pass, others have Critical findings
 

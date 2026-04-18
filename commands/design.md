@@ -16,6 +16,11 @@ Translate product vision, business goals, or user feedback into implementation-r
 Parse the user's input for:
 - **Feature or goal description** (required): What to design — can be a feature idea, business goal, user feedback, or OKR
 - **--output** (optional): Output path (default: `docs/epics/YYYY-MM-DD-<slug>.md`)
+- **--local** (optional, boolean): Produce a self-contained local epic file; SKIP GitHub issue creation entirely. Downstream commands (`/build-story`, `/e2e`, `/review-design`) must then be invoked with the epic file path rather than an issue number. Default: false.
+
+When `--local` is set:
+- Resolve the target path to `docs/epics/YYYY-MM-DD-<slug>.md` (same rules as default).
+- If the file already exists, EXIT with `"Epic file already exists at <path>. Use /super-ralph:improve-design to modify, or delete the file first."` — do not overwrite.
 
 ## Workflow — 6-Phase SADD Flow
 
@@ -203,11 +208,17 @@ Decompose the feature into stories using the SLICE framework:
 
 1. Create `docs/epics/` directory if it does not exist
 2. Write the epic document to `docs/epics/YYYY-MM-DD-<slug>.md` using the template from `${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/epic-template.md`
-3. Include all stories with their Gherkin AC (written in Phase 4, but the epic doc structure is defined here)
-4. Commit:
+3. **If `--local` is set**, insert `<!-- super-ralph: local-mode -->` as the second line of the file (right after the `# EPIC: <title>` heading). Downstream commands use this marker to discriminate local vs GitHub epics.
+4. Include all stories with their Gherkin AC (written in Phase 4, but the epic doc structure is defined here)
+5. Commit:
    ```bash
-   git add docs/epics/<file>
-   git commit -m "epic: [title]"
+   if [ -n "$LOCAL_FLAG" ]; then
+     git add docs/epics/<file>
+     git commit -m "epic: [title] (local-mode draft)"
+   else
+     git add docs/epics/<file>
+     git commit -m "epic: [title]"
+   fi
    ```
 
 ---
@@ -807,9 +818,54 @@ Calculate total effort and optimal execution order:
 4a. Within each story, `[INT]` is always ONE wave after its parent's `[BE]` + `[FE]` (can't start until both merge).
 5. Calculate parallel speedup (how many stories can run concurrently per wave)
 
+#### Step 11b: Consolidate Story Plans into Epic File (only if `--local`)
+
+When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-state plans into the epic file:
+
+1. For each story N (in numerical order):
+   - Read the run-state plan file: `.claude/runs/design-<EPIC_SLUG>/story-N-plan.md`
+   - Extract the four sections (STORY Issue Body, BE Sub-Issue Body, FE Sub-Issue Body, INT Sub-Issue Body)
+   - Append a block to the epic file under `## Stories` using this exact shape:
+
+     ```markdown
+     ### Story N: <Title>
+
+     **Persona:** <X>   **Priority:** <P0|P1|P2>   **Size:** <S|M|L|XL>   **Status:** PENDING
+     <!-- PR: -->
+     <!-- Branch: -->
+
+     #### [STORY] Story N
+
+     <STORY body from run-state file, verbatim>
+
+     #### [BE] Story N — Backend
+
+     <BE body from run-state file, verbatim>
+
+     #### [FE] Story N — Frontend
+
+     <FE body from run-state file, verbatim>
+
+     #### [INT] Story N — Integration & E2E
+
+     <INT body from run-state file, verbatim>
+
+     ---
+     ```
+
+2. Commit:
+   ```bash
+   git add docs/epics/<file>
+   git commit -m "epic: populate stories into local epic <slug>"
+   ```
+
+3. SKIP Phase 5 entirely. Proceed directly to Phase 6 with the epic file path as the review target.
+
 ---
 
 ### Phase 5: Issue Creation (sequential)
+
+**Skip this entire phase when `--local` is set.** The epic lives in the markdown file; no GitHub issues are created.
 
 #### Step 12: Create EPIC Parent Issue
 
@@ -972,12 +1028,14 @@ Dispatch a design-reviewer sub-agent inline by invoking `/super-ralph:review-des
 Task tool:
   model: sonnet
   max_turns: 30
-  description: "Review design quality for EPIC #<epic-number>"
+  description: "Review design quality for EPIC <target>"
   prompt: |
     You are a design-reviewer agent.
 
     Read the review-design command: ${CLAUDE_PLUGIN_ROOT}/commands/review-design.md
-    Follow it completely for EPIC #<epic-number>.
+    Follow it completely for:
+      - `#<epic-number>` when `--local` was NOT set
+      - `docs/epics/<slug>.md` when `--local` WAS set
 
     Run all PM Gates, Developer Gates, and Cross-Issue Checks.
     Return a structured verdict: READY / CONDITIONAL / BLOCKED.
@@ -1023,13 +1081,28 @@ Output the final report:
 [Findings summary if any]
 
 ## Launch Commands
+
+**When `--local` was set** (launch via file path):
+```
 Wave 1 (parallel):
-- `/super-ralph:build-story #<story-1-number>`
-- `/super-ralph:build-story #<story-3-number>`
+- /super-ralph:build-story docs/epics/<slug>.md#story-1
+- /super-ralph:build-story docs/epics/<slug>.md#story-3
 
 Wave 2 (after Wave 1):
-- `/super-ralph:build-story #<story-2-number>`
-- `/super-ralph:build-story #<story-4-number>`
+- /super-ralph:build-story docs/epics/<slug>.md#story-2
+- /super-ralph:build-story docs/epics/<slug>.md#story-4
+```
+
+**When `--local` was NOT set** (launch via issue number):
+```
+Wave 1 (parallel):
+- /super-ralph:build-story #<story-1-number>
+- /super-ralph:build-story #<story-3-number>
+
+Wave 2 (after Wave 1):
+- /super-ralph:build-story #<story-2-number>
+- /super-ralph:build-story #<story-4-number>
+```
 ```
 
 ---
