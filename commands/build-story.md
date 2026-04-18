@@ -66,7 +66,58 @@ Extract these values for use in all subsequent steps:
 
 Parse the STORY argument and build the context file.
 
-#### 0a. GitHub Issue (`#42` or `42`)
+#### 0a. Detect mode via shared parser
+
+```bash
+MODE=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh detect-mode "$STORY_REF")
+```
+
+Branch on `$MODE`:
+- `local` → subsection 0b (local epic file with full TDD embedded)
+- `github` → subsection 0c (GitHub issue — existing behavior)
+- `description` → subsection 0d (free-text — existing behavior)
+
+#### 0b. Local Epic File (`<path>.md#story-<N>[-<be|fe|int|story>]`)
+
+```bash
+EPIC_FILE="${STORY_REF%%#*}"
+FRAG="${STORY_REF#*#}"
+if [ "$EPIC_FILE" = "$STORY_REF" ]; then
+  echo "Local epic path without #story-N fragment — use /super-ralph:e2e for whole-epic execution" >&2
+  exit 1
+fi
+STORY_NUM=$(echo "$FRAG" | awk -F- '{print $2}')
+STORY_ID="story-${STORY_NUM}"
+STORY_SLUG="$(basename "$EPIC_FILE" .md)-story-${STORY_NUM}"
+
+STORY_BODY=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh extract-substory "$EPIC_FILE" "$STORY_NUM" story)
+BE_BODY=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh    extract-substory "$EPIC_FILE" "$STORY_NUM" be)
+FE_BODY=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh    extract-substory "$EPIC_FILE" "$STORY_NUM" fe)
+INT_BODY=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh   extract-substory "$EPIC_FILE" "$STORY_NUM" int)
+STORY_STATUS=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh get-status "$EPIC_FILE" "$STORY_NUM")
+STORY_TITLE=$(grep -m1 "^### Story ${STORY_NUM}:" "$EPIC_FILE" | sed -E "s/^### Story ${STORY_NUM}: //")
+
+# Refuse to rebuild shipped work
+if [ "$STORY_STATUS" = "COMPLETED" ]; then
+  echo "Story ${STORY_NUM} is already COMPLETED (see ${EPIC_FILE}). Refusing to rebuild shipped work." >&2
+  exit 1
+fi
+
+if [ -w "$(git rev-parse --show-toplevel)/.claude" ]; then
+  STORY_DIR="$(git rev-parse --show-toplevel)/.claude/runs/story-$STORY_ID"
+else
+  STORY_DIR="/tmp/super-ralph-story-$STORY_ID"
+fi
+mkdir -p "$STORY_DIR"
+
+# Persist extracted sections for Phase 2 consumption
+printf '%s\n' "$STORY_BODY" > "$STORY_DIR/story.md"
+printf '%s\n' "$BE_BODY"    > "$STORY_DIR/be.md"
+printf '%s\n' "$FE_BODY"    > "$STORY_DIR/fe.md"
+printf '%s\n' "$INT_BODY"   > "$STORY_DIR/int.md"
+```
+
+#### 0c. GitHub Issue (`#42` or `42`)
 
 ```bash
 STORY_ID="$ISSUE_NUMBER"
@@ -100,26 +151,11 @@ fi
 
 Derive slug: `STORY_SLUG` from title (lowercase, hyphens, no special chars).
 
-#### 0b. Epic Story Reference (`docs/epics/my-epic.md#story-3`)
-
-```bash
-EPIC_PATH=$(echo "$STORY_REF" | cut -d'#' -f1)
-STORY_REF_ID=$(echo "$STORY_REF" | cut -d'#' -f2)
-```
-
-Read the epic file, extract the referenced story section. Build context from:
-- Story title, persona, action, outcome
-- Priority (P0/P1/P2) and Complexity (S/M/L/XL)
-- Acceptance criteria (Given/When/Then)
-- Dependencies and technical notes
-
-Derive `STORY_ID` from the story ref (e.g., `story-3`). Derive `STORY_SLUG` from the story title.
-
-#### 0c. Description String
+#### 0d. Description String
 
 Use the description directly. Derive `STORY_ID` from a slug of the description. No GitHub issue context available — plan phase will rely on codebase exploration.
 
-#### 0d. Write Context File
+#### 0e. Write Context File
 
 Write `$STORY_DIR/context.md`:
 ```markdown
@@ -149,7 +185,7 @@ Write `$STORY_DIR/context.md`:
 [broader epic goals for context]
 ```
 
-#### 0e. Initialize Progress Tracker
+#### 0f. Initialize Progress Tracker
 
 Write `$STORY_DIR/progress.md`:
 ```markdown
@@ -215,7 +251,22 @@ Report: `"Resuming Story $STORY_ID from Phase N ($PHASE_NAME)"`
 
 ### Phase 1: Plan
 
-**Skip detection:** Before dispatching the plan sub-agent, check if the story issue body already contains TDD tasks:
+**Skip detection:** Before dispatching the plan sub-agent, check if the story source has TDD tasks already embedded:
+
+- **Local mode** (`$MODE = local`): TDD tasks are already in `$STORY_DIR/be.md` and `$STORY_DIR/fe.md` (written in Step 0b). Write `$STORY_DIR/plan-result.md` with:
+  ```
+  phase: plan
+  status: DONE
+  mode: embedded
+  source: $STORY_REF
+  be_body_file: $STORY_DIR/be.md
+  fe_body_file: $STORY_DIR/fe.md
+  int_body_file: $STORY_DIR/int.md
+  branch: super-ralph/$STORY_SLUG
+  ```
+  Skip the plan sub-agent entirely. Log: "Local epic TDD tasks — skipping plan phase." Proceed to Phase 2.
+
+- **GitHub mode** (`$MODE = github`): existing detection path below.
 
 ```bash
 STORY_BODY=$(gh issue view $STORY_ID --repo $REPO --json body --jq '.body')
