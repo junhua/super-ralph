@@ -1,7 +1,7 @@
 ---
 name: build
 description: "Execute an implementation plan autonomously via ralph-loop with superpowers"
-argument-hint: "<plan-path> [--max-iterations N] [--mode standard|hybrid]"
+argument-hint: "<plan-path | epic-file.md#story-N> [--max-iterations N] [--mode standard|hybrid]"
 allowed-tools: ["EnterWorktree", "Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph-loop.sh:*)", "Bash(git:*)", "Bash(bun:*)", "Bash(npm:*)", "Bash(realpath:*)", "Bash(cp:*)", "Bash(mkdir:*)", "Bash(test:*)", "Read", "Write", "Glob", "Grep", "Task", "Skill"]
 ---
 
@@ -9,7 +9,12 @@ allowed-tools: ["EnterWorktree", "Bash(${CLAUDE_PLUGIN_ROOT}/scripts/setup-ralph
 
 Execute an implementation plan autonomously via ralph-loop.
 
-**Usage:** `/super-ralph:build <plan-path> [--max-iterations N] [--mode standard|hybrid]`
+**Usage:**
+- `/super-ralph:build <plan-path>` — execute a standalone plan from `docs/plans/`
+- `/super-ralph:build <epic-file.md>#story-N` — execute a specific story from a local epic (concatenates BE+FE TDD tasks)
+- `/super-ralph:build <epic-file.md>#story-N-<be|fe|int>` — execute a specific sub-body only
+
+Optional: `[--max-iterations N] [--mode standard|hybrid]`
 
 ## Execution
 

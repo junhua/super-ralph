@@ -28,10 +28,40 @@ Extract from user input:
 
 ### 2. Resolve Path & Create Worktree
 
-```bash
-PLAN_ABS_PATH=$(realpath "<plan_path>")
-PLAN_SLUG=$(basename "<plan_path>" .md | sed -E 's/^[0-9]{4}-[0-9]{2}-[0-9]{2}-//')
-```
+Detect three argument shapes:
+
+1. **Epic-section path** — `*.md#story-<N>` or `*.md#story-<N>-<be|fe|int|story>`. Extract the relevant section(s) from the local epic file into a temp plan file before proceeding:
+
+   ```bash
+   case "$PLAN_ARG" in
+     *.md'#'story-*)
+       EPIC_FILE="${PLAN_ARG%%#*}"
+       FRAG="${PLAN_ARG#*#}"
+       SLUG=$(basename "$EPIC_FILE" .md)
+       STORY_NUM=$(echo "$FRAG" | awk -F- '{print $2}')
+       KIND=$(echo "$FRAG" | awk -F- '{print $3}')   # empty when whole story
+       RUN_DIR="$(git rev-parse --show-toplevel)/.claude/runs/build-${SLUG}-story-${STORY_NUM}"
+       mkdir -p "$RUN_DIR"
+       if [ -z "$KIND" ]; then
+         ${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh extract-substory "$EPIC_FILE" "$STORY_NUM" be  >  "$RUN_DIR/plan.md"
+         echo                                                                                            >> "$RUN_DIR/plan.md"
+         ${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh extract-substory "$EPIC_FILE" "$STORY_NUM" fe >> "$RUN_DIR/plan.md"
+       else
+         ${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh extract-substory "$EPIC_FILE" "$STORY_NUM" "$KIND" > "$RUN_DIR/plan.md"
+       fi
+       PLAN_ABS_PATH="$RUN_DIR/plan.md"
+       PLAN_SLUG="${SLUG}-story-${STORY_NUM}${KIND:+-$KIND}"
+       ;;
+     *.md)
+       PLAN_ABS_PATH=$(realpath "$PLAN_ARG")
+       PLAN_SLUG=$(basename "$PLAN_ARG" .md | sed -E 's/^[0-9]{4}-[0-9]{2}-[0-9]{2}-//')
+       ;;
+     *)
+       echo "Unrecognized plan argument: $PLAN_ARG. Expected <path.md> or <path.md>#story-<N>." >&2
+       exit 1
+       ;;
+   esac
+   ```
 
 Call `EnterWorktree` with `name="super-ralph/$PLAN_SLUG"`. If already in a worktree, skip and use current directory.
 
