@@ -554,16 +554,21 @@ Task tool:
 
     8. **Loop** until: 0 Critical, 0 Important, all tests pass. Max 5 iterations.
 
-    9. **Create PR** targeting staging:
+    9. **Create PR** targeting staging (mode-aware `Closes` line):
        ```bash
        git push -u origin HEAD
        EXISTING_PR=$(gh pr list --head "super-ralph/$STORY_SLUG" --json number --jq '.[0].number')
+       if [ "$MODE" = "local" ]; then
+         CLOSES_LINE="Closes local epic $STORY_REF"
+       else
+         CLOSES_LINE="Closes #$STORY_ID"
+       fi
        if [ -z "$EXISTING_PR" ]; then
          gh pr create \
            --base staging \
            --head "super-ralph/$STORY_SLUG" \
            --title "$STORY_TITLE" \
-           --body "$(cat <<'PREOF'
+           --body "$(cat <<PREOF
        ## Summary
        [auto-generated from story context and changes]
 
@@ -572,7 +577,7 @@ Task tool:
        - [ ] E2E acceptance tests pass
        - [ ] Browser verification [pending /verify]
 
-       Closes #$STORY_ID
+       $CLOSES_LINE
        PREOF
        )"
        else
@@ -677,6 +682,43 @@ Task tool:
 **Goal:** Merge the PR into staging and update project status.
 
 This phase runs **inline** (not as a sub-agent) since it's quick and the orchestrator has all the context.
+
+**Mode-specific finalise branches:**
+
+- When `$MODE = local`: execute steps 1-5 below (PR merge + deployment health), then **skip steps 6 (issue close), 7 (project-board move), 8 (plan marker), 10 (parent-epic auto-close via gh)**. Instead run the local-mode step 9L below which flips the `**Status:**` line in the epic file and auto-prints the release hint when all stories are COMPLETED.
+- When `$MODE = github`: execute all steps 1-10 as today.
+
+### Local-mode finalise step 9L
+
+After step 5 (Vercel staging deployment health verified), run:
+
+```bash
+EPIC_FILE="${STORY_REF%%#*}"
+STORY_NUM=$(echo "${STORY_REF#*#}" | awk -F- '{print $2}')
+${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh set-status "$EPIC_FILE" "$STORY_NUM" COMPLETED
+
+# Stamp PR + branch into the <!-- PR: --> and <!-- Branch: --> comments under the story heading
+awk -v n="$STORY_NUM" -v pr="$PR_NUMBER" -v br="super-ralph/$STORY_SLUG" '
+  function story_num(line,   s) { s=line; sub(/^### Story /, "", s); return s+0 }
+  /^### Story [0-9]+:/ { in_story = (story_num($0) == n+0) ? 1 : 0 }
+  in_story && /<!-- PR: -->/     { sub(/<!-- PR: -->/, "<!-- PR: #" pr " -->") }
+  in_story && /<!-- Branch: -->/ { sub(/<!-- Branch: -->/, "<!-- Branch: " br " -->") }
+  { print }
+' "$EPIC_FILE" > "$EPIC_FILE.tmp" && mv "$EPIC_FILE.tmp" "$EPIC_FILE"
+
+git add "$EPIC_FILE"
+git commit -m "docs: mark Story ${STORY_NUM} as COMPLETED in $(basename "$EPIC_FILE" .md)"
+git push origin staging
+
+# Check epic completion
+PENDING_COUNT=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh list-stories "$EPIC_FILE" \
+  | awk '{ if ($NF != "COMPLETED") c++ } END { print c+0 }')
+if [ "$PENDING_COUNT" = "0" ]; then
+  echo "Epic complete. Ready for: /super-ralph:release"
+fi
+```
+
+Then write `$STORY_DIR/final-result.md` with `mode: local`, `pr_merged: true`, `epic_file: $EPIC_FILE`, `story_num: $STORY_NUM`, `epic_complete: [true|false]`.
 
 1. **Ensure on staging:**
    ```bash
