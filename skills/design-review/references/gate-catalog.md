@@ -36,6 +36,16 @@
 | INT-G1 | Body contains `## Gherkin User Journey` referencing parent story | `grep -q "^## Gherkin User Journey" <body>` AND `grep -q "See parent #" <body>` |
 | INT-G2 | Body contains `## Verification Tasks` with `/super-ralph:verify` invocation | `grep -q "/super-ralph:verify" <body>` |
 
+#### BRIEF Gates (apply to brief stories only)
+
+Applied when `detect-story-level` returns `brief`. These gates replace STORY-G2, STORY-G3, BE-G*, FE-G*, INT-G*, CTX-G* for that story.
+
+| Gate | Rule | How to check |
+|------|------|--------------|
+| BRIEF-G1 | Body contains `#### Acceptance Criteria (Outline)` section with ≥3 bullets; each of `[HAPPY]`, `[EDGE]`, `[SECURITY]` labels appears at least once | `grep -q "^#### Acceptance Criteria (Outline)"` AND `grep -c '^- \`\[HAPPY\]\`'` ≥ 1 AND `grep -c '^- \`\[EDGE\]\`'` ≥ 1 AND `grep -c '^- \`\[SECURITY\]\`'` ≥ 1 |
+| BRIEF-G2 | Body does NOT contain `#### Shared Contract`, `#### Pre-Decided Implementation`, `#### [BE]`, `#### [FE]`, or `#### [INT]` subsections | `! grep -qE "^#### (Shared Contract\|Pre-Decided Implementation\|\[BE\]\|\[FE\]\|\[INT\])"` |
+| BRIEF-G3 | GitHub mode: the `[STORY]` issue has no `[BE]`/`[FE]`/`[INT]` child issues | `gh issue list --search "Parent: #<N> in:body"` returns no `[BE]`/`[FE]`/`[INT]`-prefixed titles |
+
 #### Context Budget Gates (per story group)
 
 Every execution-level issue will be loaded by a `/super-ralph:build-story` subagent into a fresh 200k-token context window. Design-time sizing is the only lever — enforce it here.
@@ -194,3 +204,31 @@ Aggregate all findings from per-story reviews (Step 3) and cross-issue checks (S
 | #N [FE] | FE-G1..2 | PASS / BLOCKED (reason) |
 | #N [INT] | INT-G1..2 | PASS / BLOCKED (reason) |
 | #N group | CTX-G1..3 | PASS / CONDITIONAL (soft-warn chars) / BLOCKED (over hard cap — split) |
+
+## Brief-aware gate selection
+
+Per-story gate selection is determined by `parse-local-epic.sh detect-story-level <epic> <N>` (local mode) or the presence of child `[BE]`/`[FE]`/`[INT]` issues (GitHub mode).
+
+| Story level | Gates applied |
+|-------------|--------------|
+| brief | STORY-G1, BRIEF-G1, BRIEF-G2, BRIEF-G3 |
+| full | STORY-G1, STORY-G2, STORY-G3, BE-G1, BE-G2, FE-G1, FE-G2, INT-G1, INT-G2, CTX-G1, CTX-G2, CTX-G3 |
+
+### Cross-Issue checks in brief mode
+
+| Check | Brief (all stories) | Mixed | Full |
+|-------|---------------------|-------|------|
+| CX-1 persona consistency | RUN | RUN | RUN |
+| CX-2 shared contract consistency | SKIP | RUN (only over full stories) | RUN |
+| CX-3 wave DAG validity | RUN | RUN | RUN |
+| CX-4 no duplicate titles/personas | RUN | RUN | RUN |
+| CX-5 i18n key namespace uniqueness | SKIP | RUN (only over stories with FE sub-issue) | RUN |
+
+## Verdict classification (brief-aware)
+
+- **All stories brief, no BRIEF-G failures:** `READY FOR EXPAND`. Final report lists `/super-ralph:expand-story` commands in wave order instead of `/super-ralph:build-story`.
+- **All stories full, no failures:** `READY` (existing verdict).
+- **Mixed epic, no failures:** `READY — MIXED`. Final report lists `/super-ralph:expand-story` commands for brief stories and `/super-ralph:build-story` commands for full stories.
+- **Any BRIEF-G failure:** `CONDITIONAL`.
+- **Any CX-1/CX-3/CX-4 Critical failure:** `BLOCKED`.
+- **Any STORY-G1 failure on brief:** `CONDITIONAL` (story needs the outline section before expansion can run).
