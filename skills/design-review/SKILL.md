@@ -15,6 +15,30 @@ Validate design artifacts produced by `/super-ralph:design` against enforcement 
 
 **Core insight:** A design review is not subjective critique — it is a deterministic gate-check. Every gate has a pass criterion expressible as a grep pattern or a count. Verdicts drive automation: READY means "build now," CONDITIONAL means "build safe stories now, fix others," BLOCKED means "fix before touching build."
 
+## Brief-Aware Review
+
+Before dispatching per-story review sub-agents, the skill computes the design level:
+
+```bash
+# Local mode
+DESIGN_LEVEL=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh detect-design-level "$TARGET")
+
+# GitHub mode
+HAS_BRIEF_LABEL=$(gh issue view "$TARGET" --repo "$REPO" --json labels --jq '.labels[] | select(.name=="brief") | .name' | head -1)
+# Additionally compute per-story level by checking child issues:
+#   gh issue list --repo "$REPO" --search "Parent: #<N>" --json title --jq '[.[] | select(.title | startswith("[BE]") or startswith("[FE]") or startswith("[INT]"))] | length'
+```
+
+For each story N, compute `LEVEL_N` (`brief` or `full`):
+- Local: `parse-local-epic.sh detect-story-level "$EPIC_FILE" "$N"`
+- GitHub: `brief` if no `[BE]`/`[FE]`/`[INT]` child issues, `full` otherwise
+
+Select gates per story from `references/gate-catalog.md` § "Brief-aware gate selection". Dispatch the per-story review sub-agent with the selected gate subset.
+
+Cross-issue checks run per `references/gate-catalog.md` § "Cross-Issue checks in brief mode".
+
+Verdict classification: see `references/gate-catalog.md` § "Verdict classification (brief-aware)".
+
 ## Modes
 
 | Mode | Input | Detection |
