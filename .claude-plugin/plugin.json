@@ -1,6 +1,6 @@
 {
   "name": "super-ralph",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "Project-agnostic design-first autonomous development. Auto-generates .claude/super-ralph-config.md on first use. 6-phase SADD pipeline with context-budget enforcement; 5-phase story-execution state machine; release-flow for finalise + promotion. Thin commands + lean skills + rich references architecture throughout. Requires ralph-loop and superpowers plugins; pr-review-toolkit and claude-in-chrome optional — see README.",
   "author": {
     "name": "junhua",
@@ -8,18 +8,7 @@
   },
   "license": "MIT",
   "homepage": "https://github.com/junhua/claude-plugins",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/junhua/claude-plugins.git",
-    "directory": "super-ralph"
-  },
-  "dependencies": {
-    "ralph-loop": "*",
-    "superpowers": "*"
-  },
-  "optionalDependencies": {
-    "pr-review-toolkit": "*",
-    "claude-in-chrome": "*"
-  },
+  "repository": "https://github.com/junhua/super-ralph",
+  "dependencies": ["ralph-loop", "superpowers"],
   "keywords": ["ralph-loop", "superpowers", "autonomous", "fire-and-forget", "tdd", "pr-review", "browser-verification", "release", "e2e", "epic", "staging", "hotfix", "domain-aware", "repair-pipeline", "brainstorm", "product-design", "cpo", "cto", "caio", "auto-init", "status-dashboard"]
 }

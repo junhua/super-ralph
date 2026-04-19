@@ -1,0 +1,61 @@
+name: validate-manifest
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plugin.json against Claude Code schema
+        run: |
+          set -euo pipefail
+          MANIFEST=.claude-plugin/plugin.json
+
+          if [ ! -f "$MANIFEST" ]; then
+            echo "::error::$MANIFEST is missing"
+            exit 1
+          fi
+
+          jq empty "$MANIFEST" || { echo "::error::$MANIFEST is not valid JSON"; exit 1; }
+
+          name=$(jq -r '.name // empty' "$MANIFEST")
+          [ -n "$name" ] || { echo "::error::.name is required"; exit 1; }
+          echo "$name" | grep -qE '^[a-z][a-z0-9-]*$' \
+            || { echo "::error::.name must be kebab-case (lowercase letters, digits, hyphens)"; exit 1; }
+
+          repo_type=$(jq -r '.repository | type' "$MANIFEST")
+          if [ "$repo_type" != "null" ] && [ "$repo_type" != "string" ]; then
+            echo "::error::.repository must be a string URL, got $repo_type (npm-style object is not supported)"
+            exit 1
+          fi
+
+          deps_type=$(jq -r '.dependencies | type' "$MANIFEST")
+          if [ "$deps_type" != "null" ] && [ "$deps_type" != "array" ]; then
+            echo "::error::.dependencies must be an array of strings or {name, version} objects, got $deps_type"
+            exit 1
+          fi
+
+          if [ "$(jq -r 'has("optionalDependencies")' "$MANIFEST")" = "true" ]; then
+            echo "::error::.optionalDependencies is not a valid Claude Code plugin field — document optional deps in README prose instead"
+            exit 1
+          fi
+
+          author_type=$(jq -r '.author | type' "$MANIFEST")
+          if [ "$author_type" != "null" ] && [ "$author_type" != "object" ]; then
+            echo "::error::.author must be an object like {name, email, url}, got $author_type"
+            exit 1
+          fi
+
+          keywords_type=$(jq -r '.keywords | type' "$MANIFEST")
+          if [ "$keywords_type" != "null" ] && [ "$keywords_type" != "array" ]; then
+            echo "::error::.keywords must be an array, got $keywords_type"
+            exit 1
+          fi
+
+          echo "plugin.json passes Claude Code schema checks"
+          jq '.' "$MANIFEST"
