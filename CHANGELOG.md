@@ -1,5 +1,10 @@
 # Super-Ralph Changelog
 
+## 0.14.1 — qualify dependency marketplaces
+
+### Fixed
+- `.claude-plugin/plugin.json` dependencies now qualify the marketplace (`ralph-loop@claude-plugins-official`, `superpowers@claude-plugins-official`). Bare names resolved to the plugin's own marketplace (`junhua-plugins`), producing `Dependency "ralph-loop@junhua-plugins" is not found` on load.
+
 ## 0.13.1 — plugin.json schema fix + CI validation
 
 ### Fixed
