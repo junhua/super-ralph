@@ -206,6 +206,82 @@ Decompose the feature into stories using the SLICE framework:
 See `story-planner-spec.md` for the full Phase 4 Step 9 sub-agent dispatch and output contracts.
 See `execution-planning.md` for Steps 10, 10.5 (audit), and 11 (wave plan).
 
+### Phase 4b: Brief Story Planning (only when `--brief` is set)
+
+When `$BRIEF_FLAG = true`, replace the Phase 4 story-planner dispatch with the brief-story-planner dispatch below. Skip Steps 10.5 (context-budget audit) — brief bodies are trivially under budget. Step 11 (wave assignment) still runs normally.
+
+**Brief story-planner sub-agent (parallel, 1 sonnet per story, max 4 concurrent):**
+
+```
+Task tool:
+  model: sonnet
+  max_turns: 15
+  description: "Brief plan Story N: [Title]"
+  prompt: |
+    You are a brief-story-planner agent. Produce ONE brief story block for backlog grooming.
+
+    ## Story
+    - Title: [TITLE]
+    - Persona: [PERSONA]
+    - Action: [ACTION]
+    - Outcome: [OUTCOME]
+    - Priority: [P0|P1|P2]
+    - Size: [S|M|L]
+
+    ## Epic Scope
+    - In scope: [LIST]
+    - Out of scope: [LIST]
+
+    ## Product context
+    [Paste 200-word vision/persona summary from Phase 2 synthesis]
+
+    ## Output format
+
+    Write ONLY the markdown block below. No TDD, no shared contract, no implementation detail, no file paths, no code.
+
+    ```
+    ### Story [N]: [Title]
+
+    **As a** [persona], **I want** [action], **So that** [outcome].
+
+    **Persona:** [persona]   **Priority:** [P?]   **Size:** [S|M|L]   **Status:** PENDING
+    <!-- PR: -->
+    <!-- Branch: -->
+
+    #### Acceptance Criteria (Outline)
+
+    - `[HAPPY]` Given [precondition], when [action], then [observable outcome with concrete values].
+    - `[EDGE]` Given [boundary condition], when [action], then [graceful handling].
+    - `[SECURITY]` Given [unauthorized role], when [action], then [403 / denial message].
+    ```
+
+    Rules:
+    - Exactly one bullet for each of `[HAPPY]`, `[EDGE]`, `[SECURITY]` (more allowed, but all three labels MUST appear).
+    - Each bullet is one sentence combining Given/When/Then with concrete values.
+    - Use the specific persona from the vision, never generic "user".
+    - No implementation detail (no file paths, no code, no API shapes).
+    - No `#### Shared Contract`, `#### Pre-Decided Implementation`, or `#### [BE/FE/INT]` subsections.
+
+    Write output to:
+      $(git rev-parse --show-toplevel)/.claude/runs/design-<EPIC_SLUG>/story-<N>-brief.md
+      (fallback: /tmp/super-ralph-design-<EPIC_SLUG>/story-<N>-brief.md)
+
+    NEVER ask for human input. Output must be ready to paste directly into the epic file.
+```
+
+**Orchestrator consolidation:** after all brief sub-agents complete, read `story-N-brief.md` files and use them as story block content for Step 11b (local mode) or Phase 5 (GitHub mode — see brief-mode branching).
+
+### Skip Step 10.5 in brief mode
+
+Step 10.5 (Context Budget Audit) is SKIPPED entirely when `$BRIEF_FLAG = true`. Brief bodies (typically 500-1000 chars) cannot red-line the budget. Write a minimal budget report to `.claude/runs/design-<slug>/context-budget.md`:
+
+```markdown
+# Context Budget Report (brief mode)
+
+Brief design — no budget audit performed. Bodies are STORY-only, < 2 KB each.
+Stories: N
+```
+
 ---
 
 ## Local Mode Consolidation (Step 11b)
