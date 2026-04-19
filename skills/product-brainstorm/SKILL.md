@@ -167,5 +167,12 @@ Brainstorm outputs feed into:
 
 ## References
 
+- `references/brainstorm-flow.md` — 7-step procedure executed by `/super-ralph:brainstorm` (scope detection → research → executive agents → synthesize → write document)
+- `references/executive-personas.md` — CPO / CTO / CAIO SME brainstormer prompts dispatched in Step 5
 - `references/agent-native-patterns.md` — Agent-native enterprise software patterns, capabilities, and limitations
 - `references/brainstorm-lenses.md` — Six analytical perspectives with synthesis methodology
+
+### Sibling skills
+
+- `../product-design/SKILL.md` — Brainstorm outputs feed into `/super-ralph:design` for epic creation
+- `../repair-domains/SKILL.md` — Backs `/super-ralph:repair` for fast-track fixes identified during brainstorming

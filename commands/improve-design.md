@@ -33,7 +33,11 @@ Example prompts:
 
 Read `.claude/super-ralph-config.md` to load project-specific values. If the file does not exist, first attempt auto-init by invoking the init command logic, then tell the user to run `/super-ralph:init` manually if auto-init fails.
 
-Extract: `$REPO`, `$ORG`.
+Extract every `$VARIABLE` referenced in the `product-design` skill (at minimum: `$REPO`, `$ORG`, `$PROJECT_NUM`, plus the paths any apply-change sub-agent may need).
+
+### Step 0b: Load Skills
+
+Invoke the `super-ralph:product-design` and `super-ralph:issue-management` skills so apply-change agents can follow canonical patterns (epic structure, SLICE, context budget, Gherkin format, TDD task shape, issue taxonomy, gh mechanics). The apply-change prompts reference those skill's `references/` files directly.
 
 ### Phase 0a: Resolve target from prompt
 
@@ -181,16 +185,19 @@ Task tool:
     [if MODE=local: extracted via parse-local-epic.sh extract-substory]
     [if MODE=github: fetched via gh issue view for the target issue(s)]
 
-    Relevant templates:
-      Story templates: ${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/story-template.md
-      Epic templates:  ${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/epic-template.md
-      AC guide:        ${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/acceptance-criteria-guide.md
+    Relevant references (same shape /design uses):
+      Story template:     ${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/story-template.md
+      Epic template:      ${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/epic-template.md
+      AC guide:           ${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/acceptance-criteria-guide.md
+      Story-planner spec: ${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/story-planner-spec.md
+      Context budget:     ${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/context-budget.md
 
     Produce the new/edited section text(s) following the same format conventions as `/design`:
       - Gherkin AC: full Feature/Background/Scenario, ≥3 scenarios, ≥1 [SECURITY]
       - TDD Tasks: exact code, expected outputs, commit messages
       - Mock data included in [FE] bodies
       - i18n in both base + secondary locale files
+      - Respect the Execution Context Budget — combined STORY+BE+FE+INT ≤ 90k tok target, hard cap 120k tok. If a split-induced story exceeds the cap, emit SPLIT_NEEDED per the budget reference.
 
     Write outputs to:
       .claude/runs/improve-<slug>/change-N-new-<target>.md  (replacement content)

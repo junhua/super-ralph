@@ -1,5 +1,74 @@
 # Super-Ralph Changelog
 
+## v0.13.0 — Thin Commands + Modular Skills Refactor (2026-04-19)
+
+### Added
+- **New skill `story-execution`** — canonical 5-phase state machine (plan → build → review-fix → verify → finalise) for `/super-ralph:build-story`, with 7 reference files:
+  - `state-machine.md` (320 lines) — Step 0 context resolution, Step 1 resume detection, `[INT]` sub-issue branching, temp-file layout
+  - `phase-1-plan.md`, `phase-2-build.md`, `phase-3-review-fix.md`, `phase-4-verify.md`, `phase-5-finalise.md` — per-phase sub-agent dispatch specs
+  - `epic-orchestration.md` (545 lines) — wave-driven multi-story execution for `/super-ralph:e2e`
+- **New skill `release-flow`** — unified skill covering per-story finalise + release promotion, with 2 reference files:
+  - `finalise-flow.md` (404 lines) — 8-step per-PR finalise procedure
+  - `release-flow.md` (525 lines) — 10-phase staging → main promotion
+- **Expanded `repair-domains` skill** — added 2 reference files:
+  - `repair-flow.md` (522 lines) — 10-step end-to-end repair procedure (parse → detect → research → worktree → TDD fix → review-fix → verify → finalise → backport → report)
+  - `hotfix-backport.md` (61 lines) — hotfix backport procedure for main-targeting fixes
+- **Expanded `product-brainstorm` skill** — added 2 reference files:
+  - `brainstorm-flow.md` (186 lines) — 7-step brainstorm procedure
+  - `executive-personas.md` (81 lines) — CPO / CTO / CAIO SME brainstormer prompts
+
+### Changed (architecture refactor, continued from v0.12)
+- **Nine commands slimmed to thin orchestrators:**
+  - `commands/design.md` 1,313 → 100 lines (92%)
+  - `commands/build-story.md` 931 → 69 lines (93%)
+  - `commands/review-design.md` 624 → 64 lines (90%)
+  - `commands/repair.md` 606 → 68 lines (89%)
+  - `commands/e2e.md` 580 → 85 lines (85%)
+  - `commands/release.md` 547 → 75 lines (86%)
+  - `commands/finalise.md` 435 → 54 lines (88%)
+  - `commands/brainstorm.md` 299 → 55 lines (82%)
+  - `commands/improve-design.md` 300 → 307 lines (+7, added skill pointers + context-budget clause)
+- **Cumulative**: 9 commands refactored, 5,635 → 877 lines (**84% reduction**).
+- **Architecture ratio:** commands : (skill bodies + references) ≈ **1 : 7** across the refactored slice. Target was 1 : 3 — well past.
+- `/e2e` now delegates cleanly to two skills (`story-execution` for per-story phases and `release-flow` for promotion). `/repair` delegates to `repair-domains` for flow and to `story-execution` + `release-flow` for reused phases. `/brainstorm` delegates to `product-brainstorm`.
+
+### Notes
+- All existing invocations work unchanged. Behavior is preserved; only the home of the content changed.
+- Per-invocation context savings compound: a `/super-ralph:e2e` or `/super-ralph:repair` call now loads metadata + pointers instead of 580/606 lines of inline workflow, then loads skill references on demand.
+- `review-fix-loop` remains deliberately command-only (`DO_NOT_ADD_SKILL.md` marker honored).
+- No behavior drift: every extracted reference preserves the source content verbatim.
+
+## v0.12.0 — Context Budget + Thin Commands Architecture (2026-04-19)
+
+### Added
+- **Execution Context Budget** model enforced end-to-end through `/super-ralph:design`: every `[STORY]`, `[BE]`, `[FE]`, `[INT]` sub-issue must fit in the 200k-token window of the downstream `/super-ralph:build-story` subagent.
+  - SLICE-time estimation rule (pre-Phase-4) to catch oversized stories before dispatching a planner.
+  - In-prompt `HARD CONSTRAINT` block on the Phase 4 story-planner with per-body caps (STORY ≤ 20k tok, BE ≤ 30k, FE ≤ 30k, INT ≤ 15k, combined ≤ 90k target / 120k hard cap).
+  - `SPLIT_NEEDED` sentinel protocol so an oversized story fails cheap instead of producing a bloated body.
+  - New Step 10.5 post-plan Context Budget Audit (bash `awk`-based byte measurement, three-tier remediation: trim → dereference pattern excerpts → split).
+  - Design-review CTX-G1..G3 gates in `/super-ralph:review-design` with soft-warn CONDITIONAL (360k–480k chars combined) vs hard-cap BLOCKED (>480k) verdict logic.
+- **New skill `design-review`** with `references/gate-catalog.md` — extracts all enforcement gates (STORY-G, BE-G, FE-G, INT-G, CTX-G, CX-x) into a single authoritative catalog.
+
+### Changed (architecture refactor)
+- **Thin commands + lean skills + rich references.** Adopted Anthropic's progressive-disclosure guidance uniformly for the design loop:
+  - `commands/design.md` 1,313 → 100 lines (92% reduction)
+  - `commands/review-design.md` 624 → 64 lines (90% reduction)
+  - `skills/product-design/SKILL.md` 479 → 215 lines (55% reduction, now a navigator)
+  - `skills/issue-management/SKILL.md` 704 → 140 lines (80% reduction)
+- **Extracted six reference files** (all content preserved verbatim, no behavior drift):
+  - `skills/product-design/references/sadd-workflow.md` (504 lines) — Full 6-phase SADD procedure
+  - `skills/product-design/references/story-planner-spec.md` (647 lines) — Phase 4 sub-agent dispatch + output contracts
+  - `skills/product-design/references/execution-planning.md` (129 lines) — DAG, audit, wave assignment
+  - `skills/product-design/references/context-budget.md` (122 lines) — Budget model, SPLIT_NEEDED, CTX gates
+  - `skills/design-review/references/gate-catalog.md` (196 lines) — All enforcement gates in one place
+  - `skills/issue-management/references/gh-invocation-patterns.md` (287 lines) — Exact `gh` CLI patterns extracted from the trimmed SKILL.md
+- `improve-design.md` now references the same product-design skill references and inherits Context Budget discipline when applying changes.
+
+### Notes
+- All existing invocations of `/super-ralph:design`, `/super-ralph:review-design`, `/super-ralph:improve-design` work unchanged — content moved, behavior preserved.
+- Ratio of command : (skill + references) in the refactored slice: ~1 : 5.4 (was ~1 : 1).
+- Per-invocation context savings expected ~60% because commands now load metadata + pointers instead of the full workflow.
+
 ## v0.11.0 — Local Mode + Improve-Design (2026-04-18)
 
 ### Added

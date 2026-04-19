@@ -132,3 +132,24 @@ The repair command should:
 4. Apply domain-specific search patterns during codebase research
 5. Pass domain info to review-fix phase for agent selection
 6. Pass domain info to verify phase for appropriate testing
+
+## End-to-End Repair Procedure
+
+`/super-ralph:repair` runs a 10-step procedure that uses this skill for domain identification and then drives the fix through research → worktree → TDD → review-fix → verify → finalise (+ optional hotfix backport).
+
+**Full step-by-step procedure:** see `references/repair-flow.md`.
+
+**Hotfix backport (when target is main, not staging):** see `references/hotfix-backport.md`.
+
+## References
+
+- `references/domain-patterns.md` — File/path/keyword signatures for each domain (frontend / backend / devops / cloud-infra / security)
+- `references/repair-flow.md` — 10-step end-to-end repair procedure (parse → detect → research → worktree → TDD fix → review-fix → verify → finalise → backport → report)
+- `references/hotfix-backport.md` — Hotfix backport procedure for main-targeting fixes
+
+### Sibling skills
+
+- `../story-execution/SKILL.md` — Parallel flow for new-feature work; repair reuses its review-fix and verify phases
+- `../release-flow/SKILL.md` — Backs the finalise step (Flow A)
+- `../browser-verification/SKILL.md` — Backs the verify step
+- `../review-fix-loop/` — Command-only skill backing review-fix
