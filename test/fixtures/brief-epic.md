@@ -43,6 +43,8 @@ Exercises brief story-level detection.
 **As a** Developer, **I want** to view a foo, **So that** I can inspect it.
 
 **Persona:** Developer   **Priority:** P1   **Size:** S   **Status:** PENDING
+<!-- PR: -->
+<!-- Branch: -->
 
 #### Acceptance Criteria (Outline)
 

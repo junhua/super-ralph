@@ -62,24 +62,6 @@ Char thresholds assume `1 token ≈ 4 chars`. Measure body size via `echo "$BODY
 
 #### Gate Evaluation Example
 
-## Gate Evaluation Example
-
-#### Context Budget Gates (per story group)
-
-Every execution-level issue will be loaded by a `/super-ralph:build-story` subagent into a fresh 200k-token context window. Design-time sizing is the only lever — enforce it here.
-
-Char thresholds assume `1 token ≈ 4 chars`. Measure body size via `echo "$BODY" | wc -c`.
-
-| Gate | Rule | How to check |
-|------|------|--------------|
-| CTX-G1 | Each individual issue body under hard cap | STORY ≤ 120,000 chars; BE ≤ 160,000 chars; FE ≤ 160,000 chars; INT ≤ 80,000 chars |
-| CTX-G2 | Combined STORY + BE + FE + INT for a given story group ≤ 480,000 chars (~120k tok) | Sum the four body char counts; must be ≤ 480,000 |
-| CTX-G3 | "Relevant Existing Files" / "Patterns to Follow" list ≤ 8 file refs per BE or FE body | `grep -cE "^- \`?\\\$[A-Z_]+_(DIR\|FILE)" <body>` ≤ 8 |
-
-**Soft-warn (not BLOCKED):** combined size > 360,000 chars (~90k tok) emits a CONDITIONAL warning — ship is allowed but remediation is recommended before re-running `/super-ralph:build-story`.
-
-#### Gate Evaluation Example
-
 For each STORY in the epic:
 ```bash
 STORY_BODY=$(gh issue view $STORY_NUMBER --repo $REPO --json body --jq '.body')
