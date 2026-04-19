@@ -109,15 +109,17 @@ Field IDs and option IDs are in `references/project-board-ids.md`.
 | `/super-ralph:review-fix` | Creates PRs with `Closes #N` to link PR to the tracked issue |
 | `/super-ralph:finalise` | On merge: auto-close via `Closes #N` → move to Shipped → cascade-close parent `[STORY]` / `[EPIC]` when all children closed |
 
-## Autonomous Decision Pattern
+## Autonomous Decision Pattern (taxonomy variant)
 
-When ambiguity arises — scope boundaries, label selection, sub-issue granularity:
+When ambiguity arises in issue taxonomy — scope boundaries, label selection, sub-issue granularity:
 
 1. Check existing issues for precedent (`gh issue list --repo $REPO`)
 2. Check the product vision and roadmap for alignment
 3. Pick the option most consistent with existing patterns
 4. Document the decision in the issue body
 5. Proceed — NEVER wait for human input
+
+> This is a lightweight variant optimized for taxonomy choices. For deeper architectural / implementation decisions (API shape, library selection, error resolution), use the canonical dispatch-based pattern in `../ralph-planning/references/autonomous-decision-pattern.md`.
 
 ## Team Roles
 

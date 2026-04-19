@@ -330,24 +330,15 @@ For each completed story **one at a time** (sequential to avoid merge conflicts)
    # Pull merged changes
    git pull origin staging
    ```
-3. **Verify staging deployment health** (same logic as finalise.md Step 2a):
-   Wait for Vercel CD to complete on staging (max 6 minutes). Verify the staging URL returns HTTP 200. If deployment fails, report the error and do NOT proceed to the next story merge — a broken staging blocks subsequent merges.
-   ```bash
-   DEPLOY_OK=false
-   for i in $(seq 1 36); do
-     STATUS_URL=$(gh api repos/$REPO/deployments \
-       --jq '[.[] | select(.ref=="staging")] | first | .statuses_url' 2>/dev/null)
-     if [ -n "$STATUS_URL" ]; then
-       STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
-       if [ "$STATE" = "success" ]; then DEPLOY_OK=true; break; fi
-       if [ "$STATE" = "error" ] || [ "$STATE" = "failure" ]; then break; fi
-     fi
-     sleep 10
-   done
-   if [ "$DEPLOY_OK" != "true" ]; then
-     echo "WARNING: Staging deployment unhealthy after merging Story #$STORY_NUMBER"
-   fi
+3. **Verify staging deployment health** — delegate to the `deployment-verification` skill:
    ```
+   REF=staging
+   URL=<staging preview URL>   # extract from PR's vercel[bot] comment
+   TIMEOUT_SECONDS=360
+   POLL_SECONDS=10
+   REPO=$REPO
+   ```
+   Follow `${CLAUDE_PLUGIN_ROOT}/skills/deployment-verification/SKILL.md` § "Verification Procedure". If it returns anything other than `HEALTHY`, report the error and do NOT proceed to the next story merge — a broken staging blocks subsequent merges.
 4. Close related GitHub issues (only in GitHub mode — same logic as finalise.md Step 2b):
    ```bash
    if [ "$MODE" = "github" ]; then

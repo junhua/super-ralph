@@ -85,60 +85,34 @@ Merge the PR using squash merge (consolidates all commits into clean history):
 
 ### Step 2a: Verify Deployment Health
 
-**Do NOT skip this step.** After merge, wait for the Vercel CD pipeline to complete and verify the deployment is healthy before proceeding. Merge success != deployment success.
+**Do NOT skip this step.** After merge, wait for the Vercel CD pipeline to complete and verify the deployment is healthy before proceeding. Merge success ≠ deployment success.
 
-1. **Wait for Vercel deployment to complete** (max 6 minutes):
-   ```bash
-   echo "Waiting for Vercel deployment on $BASE_BRANCH..."
-   DEPLOY_OK=false
-   for i in $(seq 1 36); do
-     STATUS_URL=$(gh api repos/$REPO/deployments \
-       --jq "[.[] | select(.ref==\"$BASE_BRANCH\")] | first | .statuses_url" 2>/dev/null)
-     if [ -n "$STATUS_URL" ]; then
-       STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
-       if [ "$STATE" = "success" ]; then
-         DEPLOY_OK=true
-         echo "Vercel deployment succeeded."
-         break
-       elif [ "$STATE" = "error" ] || [ "$STATE" = "failure" ]; then
-         echo "DEPLOYMENT FAILED: state=$STATE"
-         break
-       fi
-     fi
-     sleep 10
-   done
-   ```
+**Delegate to the `deployment-verification` skill** (canonical owner of the poll loop + HTTP health check):
 
-2. **If deployment failed or timed out:**
-   - Report: `"WARNING: Vercel deployment on $BASE_BRANCH did not succeed (state: $STATE). Investigate build logs before considering this task done."`
-   - Check for Vercel bot comments with error details:
-     ```bash
-     gh api repos/$REPO/issues/$PR_NUMBER/comments \
-       --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null | head -20
-     ```
-   - Do NOT proceed to "task done" status — the deployment must be healthy.
+```
+REF=$BASE_BRANCH
+URL=$APP_URL   # for main merges; for staging, extract Vercel preview URL from the PR's vercel[bot] comment
+TIMEOUT_SECONDS=360
+POLL_SECONDS=10
+REPO=$REPO
+```
 
-3. **Verify HTTP health** of the deployed URL:
-   ```bash
-   if [ "$BASE_BRANCH" = "main" ]; then
-     DEPLOY_URL="$APP_URL"
-   else
-     # Extract staging preview URL from Vercel bot comment
-     DEPLOY_URL=$(gh api repos/$REPO/issues/$PR_NUMBER/comments \
-       --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null \
-       | grep -oE 'https://[a-zA-Z0-9._-]+\.vercel\.app' | head -1)
-   fi
-   if [ -n "$DEPLOY_URL" ]; then
-     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL" --max-time 15)
-     if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
-       echo "Deployment healthy: $DEPLOY_URL returned HTTP $HTTP_STATUS"
-     else
-       echo "WARNING: Deployment may be unhealthy: $DEPLOY_URL returned HTTP $HTTP_STATUS"
-     fi
-   fi
-   ```
+Follow `${CLAUDE_PLUGIN_ROOT}/skills/deployment-verification/SKILL.md` § "Verification Procedure" — it handles the poll loop, HTTP health check, and structured result emit.
 
-4. **Report deployment status** in the summary (Step 8).
+**For staging merges,** extract the preview URL from the Vercel bot comment before delegating:
+```bash
+DEPLOY_URL=$(gh api repos/$REPO/issues/$PR_NUMBER/comments \
+  --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null \
+  | grep -oE 'https://[a-zA-Z0-9._-]+\.vercel\.app' | head -1)
+```
+
+**If the skill returns FAILED or PENDING:** do NOT proceed to "task done." Check for Vercel bot comments with error details:
+```bash
+gh api repos/$REPO/issues/$PR_NUMBER/comments \
+  --jq '[.[] | select(.user.login == "vercel[bot]")] | last | .body' 2>/dev/null | head -20
+```
+
+**If HEALTHY:** capture `deploy_state` and `deploy_url` for the summary (Step 8).
 
 ### Step 2b: Close Related GitHub Issues
 

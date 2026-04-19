@@ -154,3 +154,10 @@ Evidence: [GIF filename]
 - `references/smoke-test-checklist.md` — Default smoke tests for ForthAI Work app
 - The verify command (`commands/verify.md`) orchestrates the full workflow
 - The browser-verifier agent (`agents/browser-verifier.md`) executes browser interactions
+
+### Sibling skills
+
+- `../deployment-verification/SKILL.md` — CD health check that runs alongside browser verification (CD status ≠ runtime health)
+- `../story-execution/SKILL.md` — Phase 4 (verify) invokes this skill via `/super-ralph:verify`
+- `../design-review/SKILL.md` — Gherkin AC from the reviewed design drives the verification scenarios
+- `../release-flow/SKILL.md` — Release Phase 2a uses browser verification as part of staging QA

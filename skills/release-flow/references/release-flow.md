@@ -369,54 +369,29 @@ Merge the staging → main PR. This is the production deployment moment.
 
 ### Phase 7b: Verify Production Deployment
 
-**MANDATORY — do NOT skip.** After merge to main, wait for Vercel to deploy to production and verify the deployment is healthy. Merge success != deployment success.
+**MANDATORY — do NOT skip.** After merge to main, wait for Vercel to deploy to production and verify the deployment is healthy. Merge success ≠ deployment success.
 
-1. **Wait for Vercel production deployment** (max 8 minutes):
-   ```bash
-   echo "Waiting for Vercel production deployment on main..."
-   DEPLOY_OK=false
-   for i in $(seq 1 48); do
-     STATUS_URL=$(gh api repos/$REPO/deployments \
-       --jq '[.[] | select(.ref=="main" and .environment=="production")] | first | .statuses_url' 2>/dev/null)
-     if [ -n "$STATUS_URL" ]; then
-       STATE=$(gh api "$STATUS_URL" --jq '.[0].state' 2>/dev/null)
-       if [ "$STATE" = "success" ]; then
-         DEPLOY_OK=true
-         echo "Production deployment succeeded."
-         break
-       elif [ "$STATE" = "error" ] || [ "$STATE" = "failure" ]; then
-         echo "PRODUCTION DEPLOYMENT FAILED: state=$STATE"
-         break
-       fi
-     fi
-     sleep 10
-   done
-   ```
+**Delegate to the `deployment-verification` skill** once per production URL:
 
-2. **Verify HTTP health of production URLs:**
-   ```bash
-   for URL in $PROD_URLS; do
-     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" --max-time 15)
-     if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
-       echo "HEALTHY: $URL → HTTP $HTTP_STATUS"
-     else
-       echo "UNHEALTHY: $URL → HTTP $HTTP_STATUS"
-       DEPLOY_OK=false
-     fi
-   done
-   ```
+```
+REF=main
+URL=<each $URL in $PROD_URLS>
+TIMEOUT_SECONDS=480   # 8 minutes for production
+POLL_SECONDS=10
+REPO=$REPO
+```
 
-3. **If production deployment failed or unhealthy:**
-   - Report: `"PRODUCTION DEPLOYMENT UNHEALTHY — do NOT seal the release. Investigate Vercel build logs."`
-   - Check Vercel deployment logs:
-     ```bash
-     vercel ls 2>/dev/null | head -5
-     ```
-   - Output `RELEASE_BLOCKED` and stop — do NOT proceed to Phase 8 (tagging). A failed production deployment must be fixed before sealing the version.
+Follow `${CLAUDE_PLUGIN_ROOT}/skills/deployment-verification/SKILL.md` § "Verification Procedure" — it owns the poll loop and HTTP health check.
 
-4. **If healthy:**
-   - Report: `"Production deployment verified: all URLs healthy."`
-   - Proceed to Phase 8.
+**Aggregate verdict across all URLs:**
+- All URLs return `deploy_state: HEALTHY` → proceed to Phase 8
+- Any URL returns `FAILED` / `PENDING` / `UNHEALTHY_HTTP_*` → output `RELEASE_BLOCKED` and stop. Do NOT proceed to Phase 8 (tagging). A failed production deployment must be fixed before sealing the version.
+
+On failure, also capture diagnostic output:
+```bash
+vercel ls 2>/dev/null | head -5
+```
+and include it in the blocked-release report.
 
 ### Phase 8: Seal Version
 
