@@ -243,3 +243,91 @@ READY | CONDITIONAL | BLOCKED
 - **No auto-split.** If the planner exceeds the context budget, emit a SPLIT NEEDED report and exit — user runs `/super-ralph:improve-design` to split.
 - **Idempotent apply.** Re-running expand-story on an already-full story is safe (Step 2 exits cleanly with a clear message).
 - **Preserve audit trail.** Never delete the original brief AC bullets silently — they get replaced by the expansion commit, diff is the record.
+
+## `--all` Flow
+
+When `--all` is passed, the target must be an `[EPIC]` (either file path or issue number). The workflow:
+
+### Step 1 (modified): Enumerate brief stories under the epic
+
+**Local mode:**
+```bash
+# Target is the epic file (with or without #story-N suffix — strip it)
+EPIC_FILE="${TARGET%%#*}"
+BRIEF_STORIES=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh list-stories "$EPIC_FILE" | while read line; do
+  sid=$(echo "$line" | awk '{print $1}')
+  n=${sid#story-}
+  level=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh detect-story-level "$EPIC_FILE" "$n")
+  [ "$level" = "brief" ] && echo "$n"
+done)
+```
+
+**GitHub mode:**
+```bash
+# Target is the EPIC issue number
+EPIC_NUM="${TARGET#\#}"
+STORY_NUMS=$(gh issue list --repo "$REPO" --search "Parent: #$EPIC_NUM in:body" --json number,title \
+  --jq '.[] | select(.title | startswith("[STORY]")) | .number')
+BRIEF_STORIES=$(echo "$STORY_NUMS" | while read n; do
+  cnt=$(gh issue list --repo "$REPO" --search "Parent: #$n in:body" --json title \
+    --jq '[.[] | select(.title | startswith("[BE]") or startswith("[FE]") or startswith("[INT]"))] | length')
+  [ "$cnt" -eq 0 ] && echo "$n"
+done)
+```
+
+If `$BRIEF_STORIES` is empty, print `"No brief stories to expand under $TARGET"` and exit cleanly.
+
+### Step 2-5 (per story, in waves of 4 parallel)
+
+For each brief story, run Steps 2-5 of the single-target flow in parallel, using Task tool with up to 4 concurrent sub-agents. Each sub-agent's prompt body is the Phase 4 story-planner dispatch (see Step 4 above).
+
+Orchestrator collects all plan files, audits budget per story, and skips any story whose audit emits SPLIT NEEDED (report those to user at end).
+
+### Step 6 (per story, sequential)
+
+Apply outputs one story at a time (sequential to avoid git conflicts on the epic file).
+
+### Step 7: Flip epic marker (once, at end)
+
+Run the flip logic from Step 7 of the single-target flow once at the end.
+
+### Step 8: Invoke `/review-design` on the epic
+
+Dispatch ONE review-design sub-agent for the whole epic (not per story):
+
+```
+Task tool:
+  model: sonnet
+  max_turns: 30
+  description: "Review epic after --all expansion"
+  prompt: |
+    Read ${CLAUDE_PLUGIN_ROOT}/commands/review-design.md.
+    Follow it for target: $TARGET.
+    Return verdict + findings summary.
+```
+
+### Step 9: Final report
+
+```markdown
+# Epic Expanded: $EPIC_TITLE (all stories)
+
+## Stories Expanded
+| # | Title | Size | Sub-issues | Verdict |
+|---|-------|------|------------|---------|
+| 1 | Foo listing | M | BE #N, FE #N, INT #N | READY |
+| 2 | Foo detail | S | BE #N, FE #N, INT #N | READY |
+
+## Stories Skipped (split required)
+| # | Title | Reason |
+|---|-------|--------|
+| [if any] | [...] | Split via /improve-design |
+
+## Epic Status
+brief → full (all stories expanded)
+
+## Review Verdict
+READY | CONDITIONAL | BLOCKED
+
+## Next
+[/super-ralph:build-story commands for each expanded story, in wave order]
+```
