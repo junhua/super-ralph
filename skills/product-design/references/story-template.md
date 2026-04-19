@@ -2,6 +2,45 @@
 
 > **Config:** Project-specific values (paths, repo, team) are loaded from `.claude/super-ralph-config.md` (auto-generated on first use).
 
+## Brief Story Format (for `/super-ralph:design --brief`)
+
+Brief stories capture the user journey and acceptance criteria outline without implementation detail. Used for backlog grooming. Promote to full via `/super-ralph:expand-story #<story>`.
+
+```markdown
+### Story N: [Action-oriented title]
+
+**As a** [persona], **I want** [action], **So that** [outcome].
+
+**Persona:** [X]   **Priority:** P0|P1|P2   **Size:** S|M|L   **Status:** PENDING
+<!-- PR: -->
+<!-- Branch: -->
+
+#### Acceptance Criteria (Outline)
+
+- `[HAPPY]` Given [precondition], when [action], then [observable outcome with concrete values].
+- `[EDGE]` Given [boundary condition], when [action], then [graceful handling].
+- `[SECURITY]` Given [unauthorized role], when [action], then [403 / denial message].
+
+#### Notes (optional)
+
+[Free-form context: open decisions, links to discussion, user feedback.]
+```
+
+**Rules:**
+- Minimum 3 AC bullets: at least one `[HAPPY]`, one `[EDGE]`, one `[SECURITY]`.
+- Each bullet is a single sentence combining Given/When/Then.
+- Use concrete values ("3 items", "within 2 seconds"), not vague phrases.
+- Use the specific persona from the vision, never generic "user".
+- No implementation detail (no file paths, no code, no API shapes).
+- The `#### Acceptance Criteria (Outline)` heading is the structural marker that distinguishes brief from full (full uses `#### Acceptance Criteria (Gherkin)`).
+
+**Forbidden in brief (enforced by BRIEF-G2 gate):**
+- `#### Shared Contract` subsection
+- `#### Pre-Decided Implementation` subsection
+- `#### [BE]`, `#### [FE]`, `#### [INT]` subsections
+
+---
+
 Use this template for individual user stories within an epic. Each story is independently buildable via `/super-ralph:build-story #N` -- no separate plan step required.
 
 ---
