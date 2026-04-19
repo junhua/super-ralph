@@ -15,6 +15,24 @@ Translate product vision, business goals, and user feedback into structured epic
 
 **Core insight:** A story is not "designed" until a developer can start coding without asking questions. Pre-decided implementation (schema, service signatures, route contracts, component specs, i18n keys) eliminates ambiguity. Gherkin scenarios map 1:1 to test cases. The design phase does the thinking; the build phase does the typing.
 
+## Brief Mode
+
+`/super-ralph:design --brief` produces an EPIC with brief story skeletons for backlog grooming:
+- Title + user-story line + metadata (priority, size, persona, status)
+- 3-bullet AC outline (`[HAPPY]` / `[EDGE]` / `[SECURITY]`) — single-sentence Given/When/Then each
+- No Shared Contract, no Pre-Decided Implementation, no `[BE]`/`[FE]`/`[INT]` sub-issues
+
+**When to use brief:**
+- Sprint prep / backlog grooming before committing to implementation
+- Scope debates where stories will reshape
+- Quick capture of user feedback into candidate stories
+
+**Promoting brief to full:** `/super-ralph:expand-story #<story>` runs the full Phase 4 story-planner for one story. Use `--all` to expand every brief story under an epic.
+
+**Mixed epics:** after partial expansion, an epic can contain both brief and full stories. Detection is per-story (via `parse-local-epic.sh detect-story-level`); the epic-level `<!-- super-ralph: brief -->` marker is advisory. `/improve-design` and `/review-design` route per-story.
+
+See `references/sadd-workflow.md` § "Phase 4b: Brief Story Planning" for the sub-agent dispatch spec.
+
 ## The Outside-In Pipeline
 
 ```
