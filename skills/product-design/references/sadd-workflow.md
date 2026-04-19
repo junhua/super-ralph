@@ -290,6 +290,23 @@ Stories: N
 
 When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-state plans into the epic file:
 
+**Brief mode (`$BRIEF_FLAG = true`):** the source files are `story-N-brief.md` (not `story-N-plan.md`). Each file contains a single story block (no STORY/BE/FE/INT sections). Consolidation rules below:
+
+1. For each story N in numerical order, read `.claude/runs/design-<EPIC_SLUG>/story-N-brief.md` and append its contents verbatim under the epic's `## Stories` section. Insert a `---` horizontal rule between stories.
+2. Insert `<!-- super-ralph: brief -->` as line 3 of the epic file (after `# EPIC: <title>` and the existing `<!-- super-ralph: local-mode -->` marker):
+   ```bash
+   # POSIX sed — insert after line 2
+   awk 'NR==2 { print; print "<!-- super-ralph: brief -->"; next } { print }' "$EPIC_FILE" > "$EPIC_FILE.tmp" && mv "$EPIC_FILE.tmp" "$EPIC_FILE"
+   ```
+3. Commit:
+   ```bash
+   git add docs/epics/<file>
+   git commit -m "epic: populate brief stories into local epic <slug>"
+   ```
+4. SKIP Phase 5. Proceed directly to Phase 6.
+
+**Full mode (`$BRIEF_FLAG = false`):** original steps below.
+
 1. For each story N (in numerical order):
    - Read the run-state plan file: `.claude/runs/design-<EPIC_SLUG>/story-N-plan.md`
    - Extract the four sections (STORY Issue Body, BE Sub-Issue Body, FE Sub-Issue Body, INT Sub-Issue Body)
