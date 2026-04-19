@@ -103,4 +103,32 @@ S=$("$SCRIPT" get-status "$TMP" 2); [ "$S" = "IN_PROGRESS" ] || fail "set-status
 pass "set-status isolates target"
 rm -f "$TMP"
 
+# ─── detect-story-level ───────────────────────────────────────────
+BRIEF_FIX="$(cd "$(dirname "$0")" && pwd)/fixtures/brief-epic.md"
+MIXED_FIX="$(cd "$(dirname "$0")" && pwd)/fixtures/mixed-epic.md"
+
+LEVEL=$("$SCRIPT" detect-story-level "$BRIEF_FIX" 1)
+[ "$LEVEL" = "brief" ] || fail "detect-story-level brief/1 → expected brief got $LEVEL"
+pass "detect-story-level brief/1 → brief"
+
+LEVEL=$("$SCRIPT" detect-story-level "$BRIEF_FIX" 2)
+[ "$LEVEL" = "brief" ] || fail "detect-story-level brief/2 → expected brief got $LEVEL"
+pass "detect-story-level brief/2 → brief"
+
+LEVEL=$("$SCRIPT" detect-story-level "$FIXTURE" 1)
+[ "$LEVEL" = "full" ] || fail "detect-story-level sample/1 → expected full got $LEVEL"
+pass "detect-story-level sample/1 → full"
+
+LEVEL=$("$SCRIPT" detect-story-level "$MIXED_FIX" 1)
+[ "$LEVEL" = "full" ] || fail "detect-story-level mixed/1 → expected full got $LEVEL"
+pass "detect-story-level mixed/1 → full"
+
+LEVEL=$("$SCRIPT" detect-story-level "$MIXED_FIX" 2)
+[ "$LEVEL" = "brief" ] || fail "detect-story-level mixed/2 → expected brief got $LEVEL"
+pass "detect-story-level mixed/2 → brief"
+
+LEVEL=$("$SCRIPT" detect-story-level "$BRIEF_FIX" 99)
+[ "$LEVEL" = "missing" ] || fail "detect-story-level brief/99 → expected missing got $LEVEL"
+pass "detect-story-level brief/99 → missing"
+
 echo "--- All $(grep -c '^pass ' "$0") test assertions passed ---"

@@ -196,8 +196,31 @@ case "$cmd" in
     ' "$file" > "$tmp" && mv "$tmp" "$file"
     ;;
 
+  detect-story-level)
+    file="${1:?epic file required}"
+    num="${2:?story number required}"
+    if [ ! -f "$file" ]; then echo "missing"; exit 0; fi
+    awk -v n="$num" '
+      function story_num(line,   s) {
+        s = line; sub(/^### Story /, "", s); return s + 0
+      }
+      BEGIN { in_story=0; found=0; has_sub=0 }
+      /^### Story [0-9]+:/ {
+        if (story_num($0) == n + 0) { in_story=1; found=1; next }
+        if (in_story) { exit }
+        in_story=0
+        next
+      }
+      in_story && /^#### \[(BE|FE|INT)\] / { has_sub=1; exit }
+      END {
+        if (!found) { print "missing"; exit 0 }
+        print (has_sub ? "full" : "brief")
+      }
+    ' "$file"
+    ;;
+
   *)
-    echo "Usage: $0 {detect-mode|list-stories|extract-story|extract-substory|get-status|set-status} ..." >&2
+    echo "Usage: $0 {detect-mode|list-stories|extract-story|extract-substory|get-status|set-status|detect-story-level|detect-design-level} ..." >&2
     exit 1
     ;;
 esac
