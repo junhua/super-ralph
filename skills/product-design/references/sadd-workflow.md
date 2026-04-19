@@ -337,6 +337,8 @@ When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-sta
 
 ### Step 12: Create EPIC Parent Issue
 
+**Brief mode:** when `$BRIEF_FLAG = true`, the `[EPIC]` issue is created with the `brief` label added to the label set, and the body section "Story Priority Table" lists stories without nested `[BE]/[FE]/[INT]` sub-issue placeholders. See "Step 13 (brief mode)" below for story creation.
+
 1. **Find the active milestone:**
    ```bash
    gh api repos/$REPO/milestones --jq '.[] | select(.state=="open") | "\(.number) \(.title)"'
@@ -345,8 +347,9 @@ When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-sta
 
 2. **Create the `[EPIC]` parent issue:**
    ```bash
+   # When BRIEF_FLAG=true, append "brief" to the label list so /improve-design and /review-design can detect brief epics.
    gh issue create --title "[EPIC] <title>" \
-     --label "area/<backend|frontend|fullstack>" \
+     --label "area/<backend|frontend|fullstack>${BRIEF_FLAG:+,brief}" \
      --milestone "<active milestone>" \
      --body "$(cat <<'EOF'
    ## Goal
@@ -418,6 +421,15 @@ When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-sta
 ### Step 13: Create Story + Sub-Issues (4 issues per story)
 
 For each story, create four issues in order:
+
+**Brief mode (`$BRIEF_FLAG = true`):** SKIP steps (b), (c), (d). Only create the `[STORY]` issue per story — no `[BE]`, no `[FE]`, no `[INT]`. The story issue body is the brief block verbatim (title, user-story line, metadata, AC outline). The EPIC body's "Stories" section lists stories as:
+
+```
+- [ ] #<story-num> [STORY] Story 1
+- [ ] #<story-num> [STORY] Story 2
+```
+
+(No nested sub-issue bullets.)
 
 **a. [STORY] issue:**
 ```bash
