@@ -137,6 +137,7 @@ ISSUES:
 - **Don't re-check spec compliance** — that's spec-reviewer's job. If the code does the wrong thing entirely, note it briefly and recommend sending back to spec review.
 - **Respect existing style.** If the codebase uses a pattern, conform; don't demand the "perfect" pattern if it's inconsistent with the rest.
 - **No suggestions to refactor unrelated code.** Stay in scope of the task's diff.
+- **Output cap: under 500 words.** If more than 3 Minor/Suggestion issues, group them ("3 minor issues with inconsistent null handling in services/*.ts — collapse to one finding"). Critical/Important always listed individually. Do not quote large code blocks — cite `file:line` and describe the problem in one line.
 
 ## When You're Done
 

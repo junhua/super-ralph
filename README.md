@@ -4,7 +4,7 @@
 
 # Super-Ralph
 
-> **v0.13.0** — Thin commands + modular skills architecture. Nine major commands refactored from 5,635 → 877 lines (84% cut) by extracting workflow into skills + references. Three new skills (`design-review`, `story-execution`, `release-flow`) with 17 reference files. Every `[STORY]`/`[BE]`/`[FE]`/`[INT]` sub-issue now fits a 200k-token build context via explicit Execution Context Budget enforced at SLICE, story-planner, post-plan audit, and review-design gates. All prior invocations work unchanged — behavior preserved, only the home of the content moved.
+> **v0.13.0** — Thin commands + modular skills architecture. Nine major commands refactored from 5,635 → 877 lines (84% cut on the refactored slice) by extracting workflow into skills + references. Three new skills (`design-review`, `story-execution`, `release-flow`) and 17 new/expanded reference files in v0.13 (~40 reference files total across the plugin). Every `[STORY]`/`[BE]`/`[FE]`/`[INT]` sub-issue now fits a 200k-token build context via explicit Execution Context Budget enforced at SLICE, story-planner, post-plan audit, and review-design gates. All prior invocations work unchanged — behavior preserved, only the home of the content moved.
 
 Hit enter. Walk away. Come back to results.
 
@@ -331,7 +331,7 @@ super-ralph/
 
 ## What's New in v0.13.0
 
-**Thin commands + modular skills architecture.** Nine major commands refactored into thin orchestrators; three new skills created; 17 new reference files extracted. See [CHANGELOG.md](./CHANGELOG.md) for full details.
+**Thin commands + modular skills architecture.** Nine major commands refactored into thin orchestrators; three new skills created; 17 new/expanded reference files in v0.13 (~40 total across the plugin). See [CHANGELOG.md](./CHANGELOG.md) for full details.
 
 - **Nine commands slimmed**: design (1,313→100), build-story (931→69), review-design (624→64), repair (606→68), e2e (580→85), release (547→75), finalise (435→54), brainstorm (299→55), improve-design (300→307, added skill pointers). **Total 5,635 → 877 lines (84% cut.)**
 - **Three new skills**:

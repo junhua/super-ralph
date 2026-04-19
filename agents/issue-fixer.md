@@ -169,23 +169,20 @@ Maintain a mental ledger of your work. At the end, report:
 ```
 ## Fix Report
 
-**Issues Processed**: [N] of [total]
-**Fixed**: [count]
-**Blocked**: [count]
-**Skipped (Minor/Suggestion)**: [count]
+**Issues Processed**: [N] of [total]  |  **Fixed**: [N]  |  **Blocked**: [N]  |  **Skipped**: [N]
 
 ### Fixes Applied
-1. [File] — [What was fixed] — [commit hash]
-2. [File] — [What was fixed] — [commit hash]
+1. [file] — [what] — [commit]
+2. [file] — [what] — [commit]
 
-### Blocked Issues
-1. [File] — [Why blocked] — See BLOCKED.md
+### Blocked
+1. [file] — [one-line reason] — See BLOCKED.md
 
-### Test Results
-- Test suite: [PASS/FAIL]
-- Type check: [PASS/FAIL]
-- [Any other verification results]
+### Verification
+- Tests: PASS / FAIL  |  Types: PASS / FAIL
 ```
+
+**Output cap: under 300 words total.** One line per fix (`[file] — [what] — [commit hash]`). Test results are PASS/FAIL only — do NOT include raw test output, verbose git logs, or diff excerpts. The orchestrator parses this report; verbosity wastes loop iterations.
 
 ## Critical Rules
 

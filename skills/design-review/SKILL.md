@@ -95,73 +95,17 @@ STORY_CHARS=$(echo "$STORY_BODY" | wc -c | tr -d ' ')
 
 ### Step 3: Dispatch Per-Story Review Agents (parallel)
 
-For each STORY (with its BE/FE/INT sub-issues), dispatch a review agent. Run all in parallel.
+For each STORY (with its BE/FE/INT sub-issues), dispatch one Sonnet review agent. Run all in parallel.
 
-```
-Task tool:
-  model: sonnet
-  max_turns: 20
-  description: "Review Story #<STORY_NUMBER>: <Title>"
-  prompt: |
-    You are a design-review agent. Review one story and its sub-issues for quality.
+The full dispatch template — with the complete PM/BE/FE/SC gate tables the agent checks against — lives in `references/review-agent-prompt.md`. Use it verbatim; do not inline the prompt here.
 
-    ## Story to Review
-    ### [STORY] Issue #<STORY_NUMBER>
-    <PASTE FULL STORY ISSUE BODY>
-    ### [BE] Issue #<BE_NUMBER>
-    <PASTE FULL BE ISSUE BODY>
-    ### [FE] Issue #<FE_NUMBER>
-    <PASTE FULL FE ISSUE BODY>
+**Summary of what each agent checks** (full criteria in the reference):
+- **PM-1..PM-6** — persona specificity, measurable outcome, ≥3 Gherkin scenarios, full Gherkin format, concrete values, story independence
+- **BE-1..BE-7** — Task 0 is e2e, no pseudocode, exact paths, expected output per Run, shared-file protocol, commit messages, machine-verifiable completion criteria
+- **FE-1..FE-10** — same as BE plus i18n coverage, mock data file, CP1-CP4 checkpoints
+- **SC-1..SC-3** — types defined in STORY Shared Contract, BE/FE type alignment, no bare `any`
 
-    ## Review Checklist
-    Run every check below. For each, report: PASS, FAIL, or N/A with a one-line explanation.
-
-    ### PM Gates
-    | ID | Check | Pass Criteria |
-    |----|-------|---------------|
-    | PM-1 | Persona specificity | Uses a specific persona from product vision, NOT generic "user" |
-    | PM-2 | Measurable outcome | "So that" clause is measurable/observable, not "I can do X" |
-    | PM-3 | AC coverage | ≥3 Gherkin scenarios: 1 happy + 1 error/validation + 1 edge |
-    | PM-4 | Gherkin format | Every AC uses full Feature/Background/Scenario format |
-    | PM-5 | Concrete values | AC uses specific numbers/strings, not vague terms |
-    | PM-6 | Independent story | Buildable without other stories, or dependencies declared |
-
-    ### Developer Gates — BE Sub-Issue
-    | ID | Check | Pass Criteria |
-    |----|-------|---------------|
-    | BE-1 | Task 0 is e2e | First TDD task creates e2e test from AC (outer RED) |
-    | BE-2 | No pseudocode | No placeholders, no "...", no "TODO" — all code exact |
-    | BE-3 | Exact file paths | Every file ref uses repo-relative paths |
-    | BE-4 | Expected output | Every Run command has expected output (PASS/FAIL, counts) |
-    | BE-5 | Shared file protocol | Shared-file mods use append-only with section markers |
-    | BE-6 | Commit messages | Every TDD task ends with exact `git commit -m "..."` |
-    | BE-7 | Completion criteria | Machine-verifiable section with runnable commands |
-
-    ### Developer Gates — FE Sub-Issue
-    | ID | Check | Pass Criteria |
-    |----|-------|---------------|
-    | FE-1 | Task 0 is e2e | First TDD task creates/extends e2e test |
-    | FE-2 | No pseudocode | All code blocks exact |
-    | FE-3 | Exact file paths | Repo-relative paths only |
-    | FE-4 | Expected output | Every Run command has expected output |
-    | FE-5 | Shared file protocol | Append-only with section markers |
-    | FE-6 | Commit messages | Exact commit commands |
-    | FE-7 | Completion criteria | Machine-verifiable section |
-    | FE-8 | i18n coverage | Both primary and secondary i18n files have entries |
-    | FE-9 | Mock data | Mock data file exists for concurrent dev |
-    | FE-10 | PM checkpoints | CP1-CP4 defined with verification criteria |
-
-    ### Shared Contract Gates
-    | ID | Check | Pass Criteria |
-    |----|-------|---------------|
-    | SC-1 | Types defined | STORY Shared Contract section defines TS interfaces/types |
-    | SC-2 | BE/FE alignment | BE route types match FE API client types |
-    | SC-3 | Complete types | All fields have explicit types (no bare `any`) |
-
-    ## Output Format
-    Return per-gate PASS/FAIL tables + a Findings list classified [CRITICAL]/[IMPORTANT]/[MINOR].
-    NEVER ask for human input.
-```
+Agents return per-gate PASS/FAIL tables and a Findings list classified [CRITICAL] / [IMPORTANT] / [MINOR]. Output capped at 600 words per agent.
 
 ### Step 4: Cross-Issue Checks
 
@@ -298,6 +242,7 @@ Fix all Critical findings, then re-run.
 ## References
 
 - `references/gate-catalog.md` — Full catalog of STORY-G, BE-G, FE-G, INT-G, CTX-G, CX-x gates with exact grep/check patterns
+- `references/review-agent-prompt.md` — Exact Sonnet prompt for Step 3 per-story review agents (PM/BE/FE/SC gate tables)
 - `../product-design/references/context-budget.md` — Context-budget model that CTX gates enforce
 - `../product-design/references/story-template.md` — Shape of a well-formed STORY body (gates check against this)
 - `../product-design/references/acceptance-criteria-guide.md` — Gherkin format and coverage patterns

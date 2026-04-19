@@ -141,83 +141,14 @@ $CLOSES_LINE" --base "$DEFAULT_BRANCH"
 
 The ralph-loop Stop hook will handle subsequent iterations automatically.
 
-## Review Agent Dispatch Templates
+## Dispatch Templates
 
-All review agents use **max_turns: 20** and receive **summarized** test results (not raw output). Agents review the branch diff via `git diff origin/<default-branch>...HEAD`.
+All Task dispatch templates — review agents (Code Reviewer, Silent Failure Hunter, Test Analyzer, Comment Analyzer, Type Design Analyzer, Code Simplifier), issue-fixer batched dispatch, and SME brainstormer escalation — live in `${CLAUDE_PLUGIN_ROOT}/skills/review-fix-loop/references/agent-templates.md`. Follow that file verbatim when dispatching. Every template already includes the required `max_turns`, output constraints, and diff-reading instructions.
 
-### Code Reviewer
-```
-Task tool:
-  subagent_type: pr-review-toolkit:code-reviewer
-  max_turns: 20
-  description: "Review branch for code quality"
-  prompt: "Review the changes on this branch. Read the diff: `git diff origin/<default-branch>...HEAD`. Focus on bugs, logic errors, security vulnerabilities, and project convention violations. Only report issues with confidence >= 80.
-
-  Test summary: [PASTE SUMMARIZED TEST RESULTS]"
-```
-
-### Silent Failure Hunter
-```
-Task tool:
-  subagent_type: pr-review-toolkit:silent-failure-hunter
-  max_turns: 20
-  description: "Hunt silent failures on branch"
-  prompt: "Review the error handling in this branch's changes. Read the diff: `git diff origin/<default-branch>...HEAD`. Look for empty catch blocks, swallowed errors, inappropriate fallbacks, and missing error logging."
-```
-
-### Test Analyzer
-```
-Task tool:
-  subagent_type: pr-review-toolkit:pr-test-analyzer
-  max_turns: 20
-  description: "Analyze test coverage for branch"
-  prompt: "Review the test coverage quality for this branch's changes. Read the diff: `git diff origin/<default-branch>...HEAD`. Identify critical gaps, missing edge cases, and tests that don't actually test real behavior."
-```
-
-### Comment Analyzer
-```
-Task tool:
-  subagent_type: pr-review-toolkit:comment-analyzer
-  max_turns: 20
-  description: "Analyze comment quality on branch"
-  prompt: "Analyze code comments in this branch's changes. Read the diff: `git diff origin/<default-branch>...HEAD`. Check for factual inaccuracy, misleading comments, missing documentation for complex logic."
-```
-
-## Issue-Fixer Dispatch Template (Batched)
-
-**Dispatch in batches of at most 3 issues per dispatch.** Sub-agents cannot compact context — a single dispatch with many issues will exhaust the context window.
-
-```
-Task tool:
-  subagent_type: super-ralph:issue-fixer
-  max_turns: 30
-  description: "Fix review findings batch [N]/[TOTAL] on branch"
-  prompt: |
-    Fix the following code review findings on branch <BRANCH>.
-    This is batch [N] of [TOTAL].
-
-    ## Findings to Fix (max 3 — Critical first, then Important)
-
-    <PASTE ONLY THIS BATCH'S FINDINGS>
-
-    ## Instructions
-
-    For each finding:
-    1. Read 20 lines of context around the issue
-    2. Implement the minimal fix
-    3. Run the specific test file: bun test <test-file-path>
-    4. Commit: git add [files] && git commit -m "fix: [what] (review-fix)"
-
-    Skip Minor and Suggestions — they don't block completion.
-    NEVER ask for human input.
-```
-
-**Batching example:** 2 Critical + 5 Important issues → 3 dispatches:
-- Batch 1: 2 Critical + 1 Important
-- Batch 2: 2 Important
-- Batch 3: 2 Important
-
-Process batches sequentially. After each batch, verify with `git log --oneline -5` before dispatching the next.
+**Key constraints** (full detail in the reference):
+- Every review agent: `max_turns: 20`, confidence ≥ 80 filter, agent reads `git diff origin/<default-branch>...HEAD` itself.
+- Issue-fixer: `max_turns: 30`, batched at **max 3 issues per dispatch**, verify `git log --oneline -5` between batches.
+- SME brainstormer (oscillation only): `max_turns: 15`, invoked after 3+ identical findings in consecutive iterations.
 
 ## Anti-Oscillation
 

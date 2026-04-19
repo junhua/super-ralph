@@ -16,7 +16,7 @@ user: "Run smoke tests on production before tagging v1.2.0"
 assistant: "I'll dispatch the browser-verifier with the smoke test checklist."
 </example>
 
-model: sonnet
+model: haiku
 color: blue
 tools: ["Read", "Glob", "Grep", "Bash", "mcp__claude-in-chrome__tabs_context_mcp", "mcp__claude-in-chrome__tabs_create_mcp", "mcp__claude-in-chrome__navigate", "mcp__claude-in-chrome__find", "mcp__claude-in-chrome__form_input", "mcp__claude-in-chrome__computer", "mcp__claude-in-chrome__get_page_text", "mcp__claude-in-chrome__read_page", "mcp__claude-in-chrome__read_console_messages", "mcp__claude-in-chrome__read_network_requests", "mcp__claude-in-chrome__gif_creator", "mcp__claude-in-chrome__javascript_tool", "mcp__claude-in-chrome__resize_window"]
 ---
@@ -106,5 +106,6 @@ Output the structured verification table:
 - **Every criterion gets a verdict.** No skipping, no "not tested". If a criterion cannot be tested (e.g., page unreachable), mark FAIL with reason.
 - **GIF recording is mandatory.** Start before first interaction, stop after last assertion.
 - **Check console/network on every page.** These are implicit health criteria.
-- **Be patient with page loads.** After navigation or form submission, use `read_page` to confirm the page has loaded before asserting. Retry once if content is not yet visible.
+- **Be patient with page loads, but bounded.** After navigation or form submission, use `read_page` to confirm the page has loaded before asserting. **Max 3 retries per criterion; max 30s per page load.** If it still hasn't loaded, mark FAIL with reason `page_load_timeout` and continue.
 - **NEVER ask for human input.** If stuck (auth fails, page 404s, element not found), report as FAIL and continue to next criterion.
+- **Concise output.** Keep the final report under 400 words. One row per criterion; do not transcribe page text unless it's the evidence for a FAIL.
