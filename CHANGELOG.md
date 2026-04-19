@@ -1,9 +1,14 @@
 # Super-Ralph Changelog
 
-## 0.14.1 — qualify dependency marketplaces
+## 0.14.2 — drop plugin.json `dependencies` field
 
 ### Fixed
-- `.claude-plugin/plugin.json` dependencies now qualify the marketplace (`ralph-loop@claude-plugins-official`, `superpowers@claude-plugins-official`). Bare names resolved to the plugin's own marketplace (`junhua-plugins`), producing `Dependency "ralph-loop@junhua-plugins" is not found` on load.
+- Removed `dependencies` from `.claude-plugin/plugin.json`. Claude Code's plugin manifest doesn't support cross-marketplace dependency references: bare names resolve to the plugin's own marketplace (`junhua-plugins`), and the `name@marketplace` suffix tried in 0.14.1 isn't valid syntax. Both forms produced `Dependency "ralph-loop@junhua-plugins" is not found` on load. The requirement on `ralph-loop` and `superpowers` (both from `claude-plugins-official`) remains documented in the README — users must install them manually, as was the case before 0.13.1.
+
+## 0.14.1 — qualify dependency marketplaces (broken, do not use)
+
+### Fixed
+- `.claude-plugin/plugin.json` dependencies qualified the marketplace (`ralph-loop@claude-plugins-official`, `superpowers@claude-plugins-official`). This syntax turned out not to be supported by Claude Code — superseded by 0.14.2.
 
 ## 0.13.1 — plugin.json schema fix + CI validation
 
