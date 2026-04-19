@@ -1,6 +1,6 @@
 {
   "name": "super-ralph",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Project-agnostic design-first autonomous development. Auto-generates .claude/super-ralph-config.md on first use. 6-phase SADD pipeline with context-budget enforcement; 5-phase story-execution state machine; release-flow for finalise + promotion. Thin commands + lean skills + rich references architecture throughout. Requires ralph-loop and superpowers plugins; pr-review-toolkit and claude-in-chrome optional — see README.",
   "author": {
     "name": "junhua",
