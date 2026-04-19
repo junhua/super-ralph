@@ -33,7 +33,7 @@ Invoke the `super-ralph:design-review` skill for the full gate model, per-story 
 
 Follow the step-by-step procedure in the skill:
 
-- **`${CLAUDE_PLUGIN_ROOT}/skills/design-review/SKILL.md`** — Step 1 (Resolve EPIC), Step 2 (Load sub-issues), Step 2.5 (Apply enforcement gates from `references/gate-catalog.md`), Step 3 (Dispatch per-story review agents in parallel), Step 4 (Cross-issue checks CX-1..CX-5), Step 5 (Classify findings), Step 6 (Auto-fix if `--fix`), Step 7 (Emit verdict).
+- **`${CLAUDE_PLUGIN_ROOT}/skills/design-review/SKILL.md`** — Step 1 (Resolve EPIC), Step 1.5 (Compute design level and per-story level via `parse-local-epic.sh detect-design-level` / `detect-story-level`), Step 2 (Load sub-issues), Step 2.5 (Apply enforcement gates from `references/gate-catalog.md` — including brief-aware selection), Step 3 (Dispatch per-story review agents in parallel with per-story gate subset), Step 4 (Cross-issue checks CX-1..CX-5 with brief-mode adjustments), Step 5 (Classify findings), Step 6 (Auto-fix if `--fix`), Step 7 (Emit verdict — `READY`, `READY FOR EXPAND`, `READY — MIXED`, `CONDITIONAL`, or `BLOCKED`).
 - **`${CLAUDE_PLUGIN_ROOT}/skills/design-review/references/gate-catalog.md`** — Exact definitions of STORY-G1..G3, BE-G1..G2, FE-G1..G2, INT-G1..G2, CTX-G1..G3, CX-1..CX-5, plus verdict logic.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/context-budget.md`** — The context-budget model that CTX-G1..G3 gates enforce.
 
@@ -46,8 +46,10 @@ Output the full report in the structure defined in `design-review/SKILL.md` § "
 3. Cross-Issue Checks table (CX-1..CX-5 with PASS/FAIL + detail)
 4. Gate Summary (STORY-G, BE-G, FE-G, INT-G, CTX-G per issue)
 5. Findings Summary classified Critical / Important / Minor
-6. **Verdict** — one of READY / CONDITIONAL / BLOCKED:
-   - **READY:** output the Wave Plan with exact `/super-ralph:build-story <target>` launch commands in wave order.
+6. **Verdict** — one of READY / READY FOR EXPAND / READY — MIXED / CONDITIONAL / BLOCKED:
+   - **READY:** all stories full, no failures. Output Wave Plan with exact `/super-ralph:build-story <target>` launch commands in wave order.
+   - **READY FOR EXPAND:** all stories brief, no BRIEF-G failures. Output Wave Plan with `/super-ralph:expand-story <target>` commands instead.
+   - **READY — MIXED:** mixed epic (some brief, some full), no failures. Output Wave Plan with `/super-ralph:expand-story` for brief stories and `/super-ralph:build-story` for full stories.
    - **CONDITIONAL:** list stories that can start now + blocked stories with fix required; recommend re-running after fixes.
    - **BLOCKED:** list all Critical findings with fix required; recommend re-running after fixes.
 
