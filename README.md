@@ -118,6 +118,8 @@ Create implementation-ready epics with stories, Gherkin AC, TDD tasks, and FE/BE
 
 **`--local` mode (new in v0.11.0):** Writes the entire epic + all `[STORY]`/`[BE]`/`[FE]`/`[INT]` bodies into a single markdown file at `docs/epics/<slug>.md`. Skips GitHub issue creation entirely. Downstream commands operate on the file path instead of issue numbers — useful for iterative design, spikes, and internal work that doesn't belong on the shared roadmap.
 
+**`--brief` mode (new in v0.14.0):** Produce a brief epic (EPIC + STORY skeletons with bulleted AC; no BE/FE/INT sub-issues, no TDD). Use for backlog grooming. Promote individual stories to full via `/super-ralph:expand-story`.
+
 ### `/super-ralph:improve-design` — ADJUST EXISTING DESIGN
 
 Make targeted changes to an existing design (local file or GitHub EPIC) from a single prompt.
@@ -194,6 +196,16 @@ Safely remove old worktrees, run directories, and orphan branches.
 /super-ralph:cleanup --age-days 14 --force  # auto-remove items >14 days
 ```
 
+### `/super-ralph:expand-story`
+
+Promote a brief story (or all brief stories in an epic via `--all`) to full by running the Phase 4 story-planner. Creates the `[BE]`/`[FE]`/`[INT]` sub-issues and replaces bulleted AC with full Gherkin.
+
+```
+/super-ralph:expand-story docs/epics/2026-04-19-knowledge-refresh.md#story-3
+/super-ralph:expand-story #531
+/super-ralph:expand-story docs/epics/2026-04-19-knowledge-refresh.md --all
+```
+
 ### Other Commands
 
 | Command | Purpose |
@@ -207,6 +219,30 @@ Safely remove old worktrees, run directories, and orphan branches.
 | `/super-ralph:release` | Promote staging → main with QA gate |
 | `/super-ralph:init` | Generate `.claude/super-ralph-config.md` |
 | `/super-ralph:help` | Show full documentation |
+
+## Brief Design Flow
+
+For backlog grooming and sprint prep, run `/super-ralph:design` with `--brief`:
+
+```
+# Local brief (everything in a single markdown file)
+/super-ralph:design --local --brief "Phase 3 knowledge refresh"
+
+# GitHub brief (EPIC + STORY issues on GitHub, with `brief` label)
+/super-ralph:design --brief "Phase 3 knowledge refresh"
+```
+
+Brief stories have bulleted `[HAPPY]`/`[EDGE]`/`[SECURITY]` AC — no shared contract, no TDD. When a brief story is ready to build, promote it:
+
+```
+/super-ralph:expand-story docs/epics/2026-04-19-knowledge-refresh.md#story-3
+# or on GitHub:
+/super-ralph:expand-story #531
+```
+
+`/super-ralph:improve-design` works on both brief and full stories; it routes per-story and refuses `EDIT_TDD`/`EDIT_SHARED_CONTRACT` on brief stories (with a helpful pointer to `/expand-story`).
+
+`/super-ralph:review-design` applies lite `BRIEF-G1..G3` gates on brief stories and full gates on expanded ones. A pure brief epic yields verdict `READY FOR EXPAND` instead of `READY`.
 
 ## Run State Durability
 

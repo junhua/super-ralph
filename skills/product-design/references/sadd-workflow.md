@@ -206,6 +206,82 @@ Decompose the feature into stories using the SLICE framework:
 See `story-planner-spec.md` for the full Phase 4 Step 9 sub-agent dispatch and output contracts.
 See `execution-planning.md` for Steps 10, 10.5 (audit), and 11 (wave plan).
 
+### Phase 4b: Brief Story Planning (only when `--brief` is set)
+
+When `$BRIEF_FLAG = true`, replace the Phase 4 story-planner dispatch with the brief-story-planner dispatch below. Skip Steps 10.5 (context-budget audit) — brief bodies are trivially under budget. Step 11 (wave assignment) still runs normally.
+
+**Brief story-planner sub-agent (parallel, 1 sonnet per story, max 4 concurrent):**
+
+```
+Task tool:
+  model: sonnet
+  max_turns: 15
+  description: "Brief plan Story N: [Title]"
+  prompt: |
+    You are a brief-story-planner agent. Produce ONE brief story block for backlog grooming.
+
+    ## Story
+    - Title: [TITLE]
+    - Persona: [PERSONA]
+    - Action: [ACTION]
+    - Outcome: [OUTCOME]
+    - Priority: [P0|P1|P2]
+    - Size: [S|M|L]
+
+    ## Epic Scope
+    - In scope: [LIST]
+    - Out of scope: [LIST]
+
+    ## Product context
+    [Paste 200-word vision/persona summary from Phase 2 synthesis]
+
+    ## Output format
+
+    Write ONLY the markdown block below. No TDD, no shared contract, no implementation detail, no file paths, no code.
+
+    ```
+    ### Story [N]: [Title]
+
+    **As a** [persona], **I want** [action], **So that** [outcome].
+
+    **Persona:** [persona]   **Priority:** [P?]   **Size:** [S|M|L]   **Status:** PENDING
+    <!-- PR: -->
+    <!-- Branch: -->
+
+    #### Acceptance Criteria (Outline)
+
+    - `[HAPPY]` Given [precondition], when [action], then [observable outcome with concrete values].
+    - `[EDGE]` Given [boundary condition], when [action], then [graceful handling].
+    - `[SECURITY]` Given [unauthorized role], when [action], then [403 / denial message].
+    ```
+
+    Rules:
+    - Exactly one bullet for each of `[HAPPY]`, `[EDGE]`, `[SECURITY]` (more allowed, but all three labels MUST appear).
+    - Each bullet is one sentence combining Given/When/Then with concrete values.
+    - Use the specific persona from the vision, never generic "user".
+    - No implementation detail (no file paths, no code, no API shapes).
+    - No `#### Shared Contract`, `#### Pre-Decided Implementation`, or `#### [BE/FE/INT]` subsections.
+
+    Write output to:
+      $(git rev-parse --show-toplevel)/.claude/runs/design-<EPIC_SLUG>/story-<N>-brief.md
+      (fallback: /tmp/super-ralph-design-<EPIC_SLUG>/story-<N>-brief.md)
+
+    NEVER ask for human input. Output must be ready to paste directly into the epic file.
+```
+
+**Orchestrator consolidation:** after all brief sub-agents complete, read `story-N-brief.md` files and use them as story block content for Step 11b (local mode) or Phase 5 (GitHub mode — see brief-mode branching).
+
+### Skip Step 10.5 in brief mode
+
+Step 10.5 (Context Budget Audit) is SKIPPED entirely when `$BRIEF_FLAG = true`. Brief bodies (typically 500-1000 chars) cannot red-line the budget. Write a minimal budget report to `.claude/runs/design-<slug>/context-budget.md`:
+
+```markdown
+# Context Budget Report (brief mode)
+
+Brief design — no budget audit performed. Bodies are STORY-only, < 2 KB each.
+Stories: N
+```
+
 ---
 
 ## Local Mode Consolidation (Step 11b)
@@ -213,6 +289,23 @@ See `execution-planning.md` for Steps 10, 10.5 (audit), and 11 (wave plan).
 ### Step 11b: Consolidate Story Plans into Epic File (only if `--local`)
 
 When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-state plans into the epic file:
+
+**Brief mode (`$BRIEF_FLAG = true`):** the source files are `story-N-brief.md` (not `story-N-plan.md`). Each file contains a single story block (no STORY/BE/FE/INT sections). Consolidation rules below:
+
+1. For each story N in numerical order, read `.claude/runs/design-<EPIC_SLUG>/story-N-brief.md` and append its contents verbatim under the epic's `## Stories` section. Insert a `---` horizontal rule between stories.
+2. Insert `<!-- super-ralph: brief -->` as line 3 of the epic file (after `# EPIC: <title>` and the existing `<!-- super-ralph: local-mode -->` marker):
+   ```bash
+   # POSIX sed — insert after line 2
+   awk 'NR==2 { print; print "<!-- super-ralph: brief -->"; next } { print }' "$EPIC_FILE" > "$EPIC_FILE.tmp" && mv "$EPIC_FILE.tmp" "$EPIC_FILE"
+   ```
+3. Commit:
+   ```bash
+   git add docs/epics/<file>
+   git commit -m "epic: populate brief stories into local epic <slug>"
+   ```
+4. SKIP Phase 5. Proceed directly to Phase 6.
+
+**Full mode (`$BRIEF_FLAG = false`):** original steps below.
 
 1. For each story N (in numerical order):
    - Read the run-state plan file: `.claude/runs/design-<EPIC_SLUG>/story-N-plan.md`
@@ -261,6 +354,8 @@ When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-sta
 
 ### Step 12: Create EPIC Parent Issue
 
+**Brief mode:** when `$BRIEF_FLAG = true`, the `[EPIC]` issue is created with the `brief` label added to the label set, and the body section "Story Priority Table" lists stories without nested `[BE]/[FE]/[INT]` sub-issue placeholders. See "Step 13 (brief mode)" below for story creation.
+
 1. **Find the active milestone:**
    ```bash
    gh api repos/$REPO/milestones --jq '.[] | select(.state=="open") | "\(.number) \(.title)"'
@@ -269,8 +364,9 @@ When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-sta
 
 2. **Create the `[EPIC]` parent issue:**
    ```bash
+   # When BRIEF_FLAG=true, append "brief" to the label list so /improve-design and /review-design can detect brief epics.
    gh issue create --title "[EPIC] <title>" \
-     --label "area/<backend|frontend|fullstack>" \
+     --label "area/<backend|frontend|fullstack>${BRIEF_FLAG:+,brief}" \
      --milestone "<active milestone>" \
      --body "$(cat <<'EOF'
    ## Goal
@@ -342,6 +438,15 @@ When `--local` is set, SKIP Phase 5 entirely and instead consolidate the run-sta
 ### Step 13: Create Story + Sub-Issues (4 issues per story)
 
 For each story, create four issues in order:
+
+**Brief mode (`$BRIEF_FLAG = true`):** SKIP steps (b), (c), (d). Only create the `[STORY]` issue per story — no `[BE]`, no `[FE]`, no `[INT]`. The story issue body is the brief block verbatim (title, user-story line, metadata, AC outline). The EPIC body's "Stories" section lists stories as:
+
+```
+- [ ] #<story-num> [STORY] Story 1
+- [ ] #<story-num> [STORY] Story 2
+```
+
+(No nested sub-issue bullets.)
 
 **a. [STORY] issue:**
 ```bash

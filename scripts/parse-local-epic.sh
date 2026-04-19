@@ -196,8 +196,66 @@ case "$cmd" in
     ' "$file" > "$tmp" && mv "$tmp" "$file"
     ;;
 
+  detect-story-level)
+    file="${1:?epic file required}"
+    num="${2:?story number required}"
+    if [ ! -f "$file" ]; then echo "missing"; exit 0; fi
+    awk -v n="$num" '
+      function story_num(line,   s) {
+        s = line; sub(/^### Story /, "", s); return s + 0
+      }
+      BEGIN { in_story=0; found=0; has_sub=0 }
+      /^### Story [0-9]+:/ {
+        if (story_num($0) == n + 0) { in_story=1; found=1; next }
+        if (in_story) { exit }
+        in_story=0
+        next
+      }
+      in_story && /^#### \[(BE|FE|INT)\] / { has_sub=1; exit }
+      END {
+        if (!found) { print "missing"; exit 0 }
+        print (has_sub ? "full" : "brief")
+      }
+    ' "$file"
+    ;;
+
+  detect-design-level)
+    file="${1:?epic file required}"
+    if [ ! -f "$file" ]; then echo "not-an-epic"; exit 0; fi
+    if ! grep -q '^# EPIC:' "$file"; then echo "not-an-epic"; exit 0; fi
+
+    has_marker=0
+    grep -q '^<!-- super-ralph: brief -->$' "$file" && has_marker=1
+
+    all_brief=1
+    all_full=1
+    story_count=0
+
+    # Iterate story numbers from list-stories output
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      story_count=$((story_count + 1))
+      # "story-N Title STATUS" — take the "N" part
+      sid=$(echo "$line" | awk '{print $1}')
+      n=${sid#story-}
+      level=$("$0" detect-story-level "$file" "$n" 2>/dev/null || echo "missing")
+      [ "$level" = "full" ] && all_brief=0
+      [ "$level" = "brief" ] && all_full=0
+    done < <("$0" list-stories "$file" 2>/dev/null)
+
+    if [ "$story_count" -eq 0 ]; then
+      # Epic with no stories yet — treat as brief if marker, else full
+      if [ "$has_marker" -eq 1 ]; then echo "brief"; else echo "full"; fi
+      exit 0
+    fi
+
+    if [ "$has_marker" -eq 1 ] && [ "$all_brief" -eq 1 ]; then echo "brief"; exit 0; fi
+    if [ "$has_marker" -eq 0 ] && [ "$all_full" -eq 1 ]; then echo "full"; exit 0; fi
+    echo "mixed"
+    ;;
+
   *)
-    echo "Usage: $0 {detect-mode|list-stories|extract-story|extract-substory|get-status|set-status} ..." >&2
+    echo "Usage: $0 {detect-mode|list-stories|extract-story|extract-substory|get-status|set-status|detect-story-level|detect-design-level} ..." >&2
     exit 1
     ;;
 esac

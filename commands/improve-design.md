@@ -91,6 +91,45 @@ After this phase, you MUST have:
 - `MODE` (`local` or `github`)
 - `FEEDBACK` (the prompt with any target-identifying words stripped — use `feedback_stripped` when the resolver ran; otherwise the original prompt)
 
+### Phase 0b: Detect design level
+
+Compute `$DESIGN_LEVEL` based on mode:
+
+```bash
+if [ "$MODE" = "local" ]; then
+  DESIGN_LEVEL=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh detect-design-level "$TARGET")
+else
+  HAS_BRIEF=$(gh issue view "$TARGET" --repo $REPO --json labels --jq '.labels[] | select(.name=="brief") | .name' | head -1)
+  if [ -n "$HAS_BRIEF" ]; then DESIGN_LEVEL="brief"; else DESIGN_LEVEL="full"; fi
+fi
+```
+
+Also compute a per-story level map `$STORY_LEVELS_JSON` for the interpreter prompt (Phase 1) and a per-target `$STORY_LEVEL_FOR_TARGET` for each apply-change agent (Phase 2).
+
+```bash
+# Local mode — build JSON map of {story_num: level}
+STORY_LEVELS_JSON="{"
+FIRST=1
+for line in $(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh list-stories "$TARGET"); do
+  sid=$(echo "$line" | awk '{print $1}')
+  n=${sid#story-}
+  level=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh detect-story-level "$TARGET" "$n")
+  [ "$FIRST" = "1" ] || STORY_LEVELS_JSON="$STORY_LEVELS_JSON, "
+  STORY_LEVELS_JSON="$STORY_LEVELS_JSON\"$n\": \"$level\""
+  FIRST=0
+done
+STORY_LEVELS_JSON="$STORY_LEVELS_JSON}"
+
+# GitHub mode — enumerate child [STORY] issues under the target EPIC
+# and check child [BE]/[FE]/[INT] count for each
+EPIC_NUM="${TARGET#\#}"
+STORY_NUMS=$(gh issue list --repo $REPO --search "Parent: #$EPIC_NUM in:body" --json number,title \
+  --jq '.[] | select(.title | startswith("[STORY]")) | .number')
+# For each story_num, compute level — same shape as above
+```
+
+Pass `$DESIGN_LEVEL` and `$STORY_LEVELS_JSON` into Phase 1; pass the specific `$STORY_LEVEL_FOR_TARGET` into each Phase 2 apply-change prompt.
+
 ### Phase 1: Interpret feedback (1 Sonnet sub-agent)
 
 Dispatch a feedback-interpreter sub-agent:
@@ -102,6 +141,8 @@ Task tool:
   description: "Interpret improve-design feedback into structured changes"
   prompt: |
     TARGET: $TARGET (mode: $MODE)
+    DESIGN_LEVEL: $DESIGN_LEVEL (brief | full | mixed)
+    Per-story levels: $STORY_LEVELS_JSON (e.g., {"1": "full", "2": "brief"})
     FEEDBACK: "$FEEDBACK"
 
     CURRENT DESIGN:
@@ -119,6 +160,27 @@ Task tool:
     - EDIT_SCOPE
     - RE_WAVE
     - EDIT_METADATA (priority, size, persona)
+
+    **Brief-aware routing:**
+    - If the feedback targets a story where `STORY_LEVEL = brief` AND the feedback maps to `EDIT_TDD` or `EDIT_SHARED_CONTRACT`, set `clarification_needed: true` with this question: "Story <N> is brief — it has no TDD or Shared Contract yet. Expand it first with `/super-ralph:expand-story <target>`. Then re-run improve-design."
+    - If the feedback is `ADD_STORY` and `DESIGN_LEVEL ∈ {brief, mixed}`, default `level: brief` in the details (unless the feedback explicitly says "as full", in which case set `level: full` — the apply-change agent will run the Phase 4 story-planner inline for that one story).
+    - If the feedback is `SPLIT_STORY` on a brief story, both halves inherit `level: brief`.
+    - If the feedback is `EDIT_AC` on a brief story, produce bulleted AC outline format (not Gherkin).
+    - If the feedback is `EDIT_AC` on a full story, produce full Gherkin scenarios.
+
+    **Allowed change types by story level:**
+    | Change type | brief | full |
+    |-------------|-------|------|
+    | ADD_STORY | ✓ (default level=brief) | ✓ (default level=full) |
+    | REMOVE_STORY | ✓ | ✓ |
+    | SPLIT_STORY | ✓ (both halves brief) | ✓ (both halves full) |
+    | MERGE_STORIES | ✓ | ✓ |
+    | EDIT_AC | ✓ (bullets) | ✓ (Gherkin) |
+    | EDIT_TDD | ✗ — clarification | ✓ |
+    | EDIT_SHARED_CONTRACT | ✗ — clarification | ✓ |
+    | EDIT_SCOPE | ✓ | ✓ |
+    | RE_WAVE | ✓ | ✓ |
+    | EDIT_METADATA | ✓ | ✓ |
 
     For each change, include:
     - `target`: either `story-N` (local) or `#issue-number` (GitHub) or `epic-header` (for scope/wave edits)
@@ -178,6 +240,11 @@ Task tool:
       type: $CHANGE_TYPE
       target: $CHANGE_TARGET
       details: $CHANGE_DETAILS
+
+    STORY_LEVEL: $STORY_LEVEL_FOR_TARGET
+    Output format rules depend on STORY_LEVEL:
+    - brief: use bulleted AC outline (`- \`[HAPPY]\` ...`), no Shared Contract, no `[BE]`/`[FE]`/`[INT]` subsections.
+    - full: use full Gherkin, Shared Contract block, TDD subsections per story-template.md.
 
     Mode: $MODE ($TARGET)
 

@@ -206,6 +206,30 @@ Page:    $FE_PAGES_DIR/knowledge/page.tsx
 
 [Continue for all stories...]
 
+### Brief story variant (for `--brief` mode)
+
+When the EPIC is produced by `/super-ralph:design --brief`, each story block uses the bulleted AC outline format instead of full Gherkin:
+
+```markdown
+### Story N: [Action-oriented title]
+
+**As a** [persona], **I want** [action], **So that** [outcome].
+
+**Persona:** [X]   **Priority:** P0|P1|P2   **Size:** S|M|L   **Status:** PENDING
+<!-- PR: -->
+<!-- Branch: -->
+
+#### Acceptance Criteria (Outline)
+
+- `[HAPPY]` [single-sentence Given/When/Then with concrete values]
+- `[EDGE]` [single-sentence Given/When/Then, boundary case]
+- `[SECURITY]` [single-sentence Given/When/Then, auth case]
+```
+
+Brief stories have NO `#### Shared Contract`, NO `#### Pre-Decided Implementation`, and NO `#### [BE]`/`[FE]`/`[INT]` subsections. See `story-template.md` § "Brief Story Format" for the full spec.
+
+Epic-level header: when ALL stories are brief, the epic file has `<!-- super-ralph: brief -->` on line 3 (after the `# EPIC:` heading and `<!-- super-ralph: local-mode -->` marker if present). When any story is expanded to full, the marker stays until `/super-ralph:expand-story --all` flips it off.
+
 ---
 
 ## Execution Plan

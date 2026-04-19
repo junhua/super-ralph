@@ -1,5 +1,27 @@
 # Super-Ralph Changelog
 
+## 0.13.1 — plugin.json schema fix + CI validation
+
+### Fixed
+- Reshaped `.claude-plugin/plugin.json` to a schema-valid form (`repository` as string URL, `dependencies` as array; dropped `optionalDependencies`). Previous npm-style shapes failed Claude Code's manifest validator, blocking installs and upgrades of 0.13.0.
+
+### Added
+- `.github/workflows/validate-manifest.yml` — blocks future npm-shape regression on every PR and push to `main`.
+
+## 0.14.0 — Brief design mode + /expand-story
+
+### Added
+- `--brief` flag on `/super-ralph:design` for backlog-grooming output (EPIC + STORY skeletons with bulleted `[HAPPY]`/`[EDGE]`/`[SECURITY]` AC, no BE/FE/INT, no TDD). Combines with `--local`.
+- `/super-ralph:expand-story <target> [--all]` command to promote brief stories to full by running the Phase 4 story-planner. Auto-creates `[BE]`/`[FE]`/`[INT]` sub-issues and replaces bulleted AC with full Gherkin.
+- `BRIEF-G1`, `BRIEF-G2`, `BRIEF-G3` gates in `/super-ralph:review-design`. New verdicts `READY FOR EXPAND` (all brief) and `READY — MIXED` (hybrid).
+- `parse-local-epic.sh detect-story-level` and `detect-design-level` subcommands — structural detection of brief vs full per story and per epic.
+
+### Changed
+- `/super-ralph:improve-design` is now brief-aware: detects per-story level and refuses `EDIT_TDD`/`EDIT_SHARED_CONTRACT` on brief stories with a clarification pointing to `/expand-story`.
+
+### Fixed
+- `/super-ralph:build-story` local-mode Phase 1 skip-detection previously hardcoded `mode: embedded`. It now falls through to `mode: standard` when the story is brief (empty `be.md`/`fe.md`), unblocking brief local stories. This is also a latent-bug fix: a full epic with accidentally-empty sub-sections would previously crash the build sub-agent.
+
 ## v0.13.0 — Thin Commands + Modular Skills Refactor (2026-04-19)
 
 ### Added

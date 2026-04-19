@@ -1,7 +1,7 @@
 ---
 name: design
 description: "Create implementation-ready epics with stories, Gherkin AC, TDD tasks, and FE/BE sub-issues"
-argument-hint: "<feature-or-goal> [--output PATH] [--local]"
+argument-hint: "<feature-or-goal> [--output PATH] [--local] [--brief]"
 allowed-tools: ["Bash(git:*)", "Bash(gh:*)", "Read", "Write", "Glob", "Grep", "Task", "WebSearch", "WebFetch"]
 ---
 
@@ -17,6 +17,14 @@ Parse the user's input for:
 - **Feature or goal description** (required): What to design — a feature idea, business goal, user feedback, or OKR
 - **--output** (optional): Output path (default: `docs/epics/YYYY-MM-DD-<slug>.md`)
 - **--local** (optional, boolean): Produce a self-contained local epic file; SKIP GitHub issue creation entirely. Downstream commands (`/build-story`, `/e2e`, `/review-design`) must then be invoked with the epic file path rather than an issue number. Default: false.
+- **--brief** (optional, boolean): Produce a brief epic (EPIC header + story skeletons with bulleted AC). SKIPS Phase 4 full story-planner, Step 10.5 context-budget audit, and `[BE]`/`[FE]`/`[INT]` sub-issue creation. Combines with `--local`. Default: false.
+
+When `--brief` is set:
+- Phase 4 dispatches brief-story-planner sub-agents (see `skills/product-design/references/sadd-workflow.md` § Phase 4b).
+- Step 10.5 (context-budget audit) is skipped; minimal budget report written to `.claude/runs/design-<slug>/context-budget.md`.
+- Phase 5 creates `[EPIC]` (with `brief` label) + `[STORY]` issues only. NO `[BE]`/`[FE]`/`[INT]` sub-issues.
+- Step 11b (local consolidation) inserts `<!-- super-ralph: brief -->` as line 3 of the epic file.
+- Phase 6 (review) uses lite BRIEF-G1..G3 gates via `/review-design`'s auto-detection; the READY verdict becomes `READY FOR EXPAND`.
 
 When `--local` is set:
 - Resolve the target path to `docs/epics/YYYY-MM-DD-<slug>.md` (same rules as default).
@@ -41,6 +49,7 @@ Invoke the `super-ralph:product-design` skill (full SADD procedure, SLICE, conte
 Follow the step-by-step procedure in:
 - **`${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/sadd-workflow.md`** — Phases 0–3 (Config, Context, Research, Epic Definition), Phase 5 (Issue Creation), Phase 6 (Review + Final Report), and the Local Mode (Step 11b) consolidation branch.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/story-planner-spec.md`** — Phase 4 Step 9 (dispatch parallel story-planner sub-agents; produces STORY/BE/FE/INT bodies with pre-decided implementation + exact TDD tasks).
+- **When `--brief` is set:** dispatch brief-story-planner sub-agents instead; skip `story-planner-spec.md`. See `sadd-workflow.md` § "Phase 4b: Brief Story Planning" for the prompt.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/execution-planning.md`** — Step 10 (DAG), Step 10.5 (context-budget audit + remediation), Step 11 (AI-hours + wave assignment).
 - **`${CLAUDE_PLUGIN_ROOT}/skills/product-design/references/context-budget.md`** — Execution Context Budget rules, per-output-body caps, SPLIT_NEEDED protocol, CTX gate definitions.
 
