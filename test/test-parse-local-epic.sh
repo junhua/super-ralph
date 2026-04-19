@@ -131,4 +131,28 @@ LEVEL=$("$SCRIPT" detect-story-level "$BRIEF_FIX" 99)
 [ "$LEVEL" = "missing" ] || fail "detect-story-level brief/99 → expected missing got $LEVEL"
 pass "detect-story-level brief/99 → missing"
 
+# ─── detect-design-level ──────────────────────────────────────────
+LEVEL=$("$SCRIPT" detect-design-level "$BRIEF_FIX")
+[ "$LEVEL" = "brief" ] || fail "detect-design-level brief → expected brief got $LEVEL"
+pass "detect-design-level brief → brief"
+
+LEVEL=$("$SCRIPT" detect-design-level "$FIXTURE")
+[ "$LEVEL" = "full" ] || fail "detect-design-level sample → expected full got $LEVEL"
+pass "detect-design-level sample → full"
+
+LEVEL=$("$SCRIPT" detect-design-level "$MIXED_FIX")
+[ "$LEVEL" = "mixed" ] || fail "detect-design-level mixed → expected mixed got $LEVEL"
+pass "detect-design-level mixed → mixed"
+
+LEVEL=$("$SCRIPT" detect-design-level "/tmp/nonexistent-$$-epic.md")
+[ "$LEVEL" = "not-an-epic" ] || fail "detect-design-level missing → expected not-an-epic got $LEVEL"
+pass "detect-design-level missing → not-an-epic"
+
+# A file that exists but lacks "# EPIC:" header
+TMP=$(mktemp); echo "not an epic" > "$TMP"
+LEVEL=$("$SCRIPT" detect-design-level "$TMP")
+[ "$LEVEL" = "not-an-epic" ] || fail "detect-design-level non-epic → expected not-an-epic got $LEVEL"
+pass "detect-design-level non-epic → not-an-epic"
+rm -f "$TMP"
+
 echo "--- All $(grep -c '^pass ' "$0") test assertions passed ---"
