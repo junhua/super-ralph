@@ -211,7 +211,8 @@ Per-story gate selection is determined by `parse-local-epic.sh detect-story-leve
 
 | Story level | Gates applied |
 |-------------|--------------|
-| brief | STORY-G1, BRIEF-G1, BRIEF-G2, BRIEF-G3 |
+| brief (local) | BRIEF-G1, BRIEF-G2 |
+| brief (GitHub) | BRIEF-G1, BRIEF-G2, BRIEF-G3 |
 | full | STORY-G1, STORY-G2, STORY-G3, BE-G1, BE-G2, FE-G1, FE-G2, INT-G1, INT-G2, CTX-G1, CTX-G2, CTX-G3 |
 
 ### Cross-Issue checks in brief mode
@@ -231,4 +232,4 @@ Per-story gate selection is determined by `parse-local-epic.sh detect-story-leve
 - **Mixed epic, no failures:** `READY — MIXED`. Final report lists `/super-ralph:expand-story` commands for brief stories and `/super-ralph:build-story` commands for full stories.
 - **Any BRIEF-G failure:** `CONDITIONAL`.
 - **Any CX-1/CX-3/CX-4 Critical failure:** `BLOCKED`.
-- **Any STORY-G1 failure on brief:** `CONDITIONAL` (story needs the outline section before expansion can run).
+- **Any BRIEF-G1 failure on brief:** `CONDITIONAL` (story needs the `#### Acceptance Criteria (Outline)` section with all three category labels before expansion can run).
