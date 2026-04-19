@@ -107,3 +107,9 @@ Delegate to the deployment-verification skill with:
 - `.claude/rules/deployment-verification.md` — the project rule this enforces
 - `${CLAUDE_PLUGIN_ROOT}/commands/release.md` — production promotion that uses this
 - `${CLAUDE_PLUGIN_ROOT}/commands/finalise.md` — staging finalise that uses this
+
+### Sibling skills
+
+- `../release-flow/SKILL.md` — `finalise-flow.md` Step 2a and `release-flow.md` Phase 7b both delegate to this skill
+- `../story-execution/SKILL.md` — `phase-5-finalise.md` delegates to this skill via the release-flow procedure
+- `../browser-verification/SKILL.md` — CD health and runtime health are complementary; both must pass

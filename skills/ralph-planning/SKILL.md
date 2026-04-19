@@ -287,5 +287,11 @@ Closes #N3
 - `references/plan-template.md` — Complete plan template
 - `references/prompt-standard.md` — Standard mode execution prompt
 - `references/prompt-hybrid.md` — Hybrid mode execution prompt
-- `references/autonomous-decision-pattern.md` — Autonomous decision-making pattern
+- `references/autonomous-decision-pattern.md` — Autonomous decision-making pattern (**canonical** — other skills that mention this pattern should link here rather than duplicate it)
 - `references/superpowers-compatibility.md` — Which superpowers skills work in ralph-loop
+
+### Sibling skills
+
+- `../build/SKILL.md` — Consumes the plans this skill produces; references the same prompt-standard / prompt-hybrid files
+- `../story-execution/SKILL.md` — Phase 1 (plan) uses this skill when TDD tasks are not already embedded
+- `../product-design/SKILL.md` — `/super-ralph:design` produces embedded TDD tasks that BYPASS this planning skill — ralph-planning is for ad-hoc work (`[FIX]`, `[CHORE]`, spikes)

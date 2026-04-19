@@ -4,7 +4,7 @@
 
 # Super-Ralph
 
-> **v0.11.0** — Local mode + Improve-design. `/design --local` writes the entire epic (including every `[STORY]`/`[BE]`/`[FE]`/`[INT]` body) into a single markdown file at `docs/epics/<slug>.md` and skips GitHub issue creation. `/build-story`, `/e2e`, `/review-design`, and `/build` all accept path-based arguments (`docs/epics/<slug>.md#story-N`) and auto-detect local vs GitHub. New `/super-ralph:improve-design "<prompt>"` resolves the target epic from a single natural-language prompt and applies conservative structured edits with shipped-immutability safety. All existing GitHub workflows are unchanged — local mode is additive and default off.
+> **v0.13.0** — Thin commands + modular skills architecture. Nine major commands refactored from 5,635 → 877 lines (84% cut) by extracting workflow into skills + references. Three new skills (`design-review`, `story-execution`, `release-flow`) with 17 reference files. Every `[STORY]`/`[BE]`/`[FE]`/`[INT]` sub-issue now fits a 200k-token build context via explicit Execution Context Budget enforced at SLICE, story-planner, post-plan audit, and review-design gates. All prior invocations work unchanged — behavior preserved, only the home of the content moved.
 
 Hit enter. Walk away. Come back to results.
 
@@ -284,59 +284,71 @@ Mapping: Feature→`describe()`, Background→`beforeEach()`, Scenario→`test()
 super-ralph/
 ├── .claude-plugin/plugin.json   ← version, dependencies
 ├── CHANGELOG.md                 ← version history
-├── agents/
+├── agents/                      ← subagents dispatched via Task tool
 │   ├── browser-verifier.md
-│   ├── code-quality-reviewer.md ← NEW v0.9.2: hybrid-mode quality gate
+│   ├── code-quality-reviewer.md
 │   ├── issue-fixer.md
-│   ├── plan-reviewer.md         ← v0.9.2: adversarial posture
+│   ├── plan-reviewer.md
 │   ├── research-agent.md
 │   ├── sme-brainstormer.md
-│   └── spec-reviewer.md         ← NEW v0.9.2: adversarial spec gate
-├── commands/
-│   ├── brainstorm.md
-│   ├── build-story.md
-│   ├── build.md                 ← v0.9.2: thin skill shim (fixes print-bug)
-│   ├── cleanup.md               ← NEW v0.9.2: prune stale state
-│   ├── design.md                ← PRIMARY COMMAND (6-phase SADD)
-│   ├── e2e.md
-│   ├── finalise.md
+│   └── spec-reviewer.md
+├── commands/                    ← v0.13: thin orchestrators (most ≤100 lines)
+│   ├── brainstorm.md            ← 55 lines
+│   ├── build-story.md           ← 69 lines — 5-phase state machine
+│   ├── build.md                 ← 49 lines (exemplar thin shim)
+│   ├── cleanup.md
+│   ├── design.md                ← 100 lines — PRIMARY COMMAND (6-phase SADD)
+│   ├── e2e.md                   ← 85 lines — wave-driven epic orchestrator
+│   ├── finalise.md              ← 54 lines
 │   ├── help.md
-│   ├── init.md                  ← auto-generate project config
-│   ├── plan.md                  ← AD-HOC ONLY (FIX/CHORE/spikes)
-│   ├── release.md
-│   ├── repair.md
-│   ├── review-design.md         ← quality gate command
-│   ├── review-fix.md
-│   ├── status.md                ← NEW v0.9.2: runtime dashboard
+│   ├── improve-design.md
+│   ├── init.md
+│   ├── plan.md                  ← AD-HOC ONLY ([FIX]/[CHORE]/spikes)
+│   ├── release.md               ← 75 lines
+│   ├── repair.md                ← 68 lines
+│   ├── review-design.md         ← 64 lines — quality gate
+│   ├── review-fix.md            ← intentionally command-only
+│   ├── status.md
 │   └── verify.md
 ├── scripts/
-│   └── setup-ralph-loop.sh      ← v0.9.2: git-toplevel resolution
-└── skills/
-    ├── browser-verification/
-    ├── build/                   ← NEW v0.9.2: /build executor skill
-    ├── deployment-verification/ ← NEW v0.9.2: single-source CD polling
-    ├── issue-management/
-    ├── product-brainstorm/
-    ├── product-design/
-    ├── ralph-planning/
-    ├── repair-domains/
-    └── review-fix-loop/
+│   ├── setup-ralph-loop.sh
+│   └── parse-local-epic.sh
+└── skills/                      ← v0.13: lean SKILL.md + rich references
+    ├── browser-verification/    ← + smoke-test-checklist.md
+    ├── build/                   ← + build-executor.md
+    ├── deployment-verification/ ← canonical CD health check
+    ├── design-review/           ← NEW v0.13: + gate-catalog.md
+    ├── issue-management/        ← taxonomy + gh-invocation-patterns.md
+    ├── product-brainstorm/      ← + brainstorm-flow.md, executive-personas.md
+    ├── product-design/          ← navigator + sadd-workflow, story-planner-spec,
+    │                               execution-planning, context-budget references
+    ├── ralph-planning/          ← canonical autonomous-decision-pattern
+    ├── release-flow/            ← NEW v0.13: + finalise-flow.md, release-flow.md
+    ├── repair-domains/          ← + repair-flow.md, hotfix-backport.md, domain-patterns.md
+    ├── review-fix-loop/         ← DO_NOT_ADD_SKILL (command-only by design)
+    └── story-execution/         ← NEW v0.13: 5-phase state machine + 7 references
 ```
+
+## What's New in v0.13.0
+
+**Thin commands + modular skills architecture.** Nine major commands refactored into thin orchestrators; three new skills created; 17 new reference files extracted. See [CHANGELOG.md](./CHANGELOG.md) for full details.
+
+- **Nine commands slimmed**: design (1,313→100), build-story (931→69), review-design (624→64), repair (606→68), e2e (580→85), release (547→75), finalise (435→54), brainstorm (299→55), improve-design (300→307, added skill pointers). **Total 5,635 → 877 lines (84% cut.)**
+- **Three new skills**:
+  - `design-review` — canonical gate catalog (STORY-G / BE-G / FE-G / INT-G / CTX-G / CX-x) used by `/review-design`
+  - `story-execution` — 5-phase state machine (plan → build → review-fix → verify → finalise) used by `/build-story`; epic-orchestration.md backs `/e2e`
+  - `release-flow` — unified per-story finalise (Flow A) + release promotion (Flow B) used by `/finalise` and `/release`
+- **Execution Context Budget** enforced end-to-end in `/design`: SLICE-time pre-estimation → in-prompt HARD CONSTRAINT on story-planner → `SPLIT_NEEDED` sentinel protocol → Step 10.5 post-plan byte audit → CTX-G1..G3 gates at `/review-design`. Every `[STORY]`/`[BE]`/`[FE]`/`[INT]` body sized to fit the downstream 200k-token build subagent context, so oversized stories fail at design time instead of at build time.
+- **Architecture ratio**: commands : (skills + references) ≈ **1 : 7** on refactored slice, **~1 : 3 plugin-wide** — past the "thin commands + lean skills + rich references" best-practice target.
 
 ## What's New in v0.11.0
 
-Local mode + autonomous design adjustment — see [CHANGELOG.md](./CHANGELOG.md) for details. Highlights:
-
-- **`/design --local`**: full epic + all `[STORY]`/`[BE]`/`[FE]`/`[INT]` bodies written to a single `docs/epics/<slug>.md` file. No GitHub issues created.
-- **Path-based invocation**: `/build-story`, `/e2e`, `/review-design`, `/build` all accept `docs/epics/<slug>.md[#story-N]` and auto-detect mode.
-- **`/super-ralph:improve-design "<prompt>"`**: single-prompt command that autonomously resolves the target epic (explicit or fuzzy-matched with `AskUserQuestion` disambiguation), interprets feedback into structured changes, applies edits, and re-validates via `/review-design`.
-- **Shipped-immutability**: Stories with `Status: COMPLETED` (local) or CLOSED `[STORY]` issues (GitHub) are refused by both `/improve-design` and `/build-story`.
-- **Shared parser** (`scripts/parse-local-epic.sh`): POSIX-portable awk implementation with 6 subcommands, used by all 5 commands for consistent anchor parsing. Covered by 20 fixture-based test assertions.
+Local mode + autonomous design adjustment — `/design --local` writes the entire epic into a single `docs/epics/<slug>.md` file, `/super-ralph:improve-design "<prompt>"` applies targeted adjustments, all downstream commands accept path-based arguments. See [CHANGELOG.md](./CHANGELOG.md).
 
 ## What's New in v0.9.2 – v0.10.0
 
-- **v0.10.0**: `[INT]` sub-issue type for integration + E2E + deployment verification, mandatory User Journey + Test Plan + 9 enforcement gates in `/review-design`
-- **v0.9.2**: Portability (`${CLAUDE_PLUGIN_ROOT}`), quality-gate agents, durable `.claude/runs/`, `/status`, `/cleanup`, `deployment-verification` skill, plugin dependencies, build print-bug fix
+- **v0.10.0**: `[INT]` sub-issue type for integration + E2E + deployment verification; 9 enforcement gates in `/review-design`.
+- **v0.9.2**: Portability (`${CLAUDE_PLUGIN_ROOT}`), quality-gate agents, durable `.claude/runs/`, `/status`, `/cleanup`, `deployment-verification` skill, plugin dependencies.
 
 ## License
 

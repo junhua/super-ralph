@@ -105,6 +105,8 @@ Append at the end of the Skills section:
 When you encounter ambiguity or need to make a design decision: dispatch a research-agent (Task tool) for web references, then dispatch 1-2 sme-brainstormer agents for analysis. Pick the most rational option. NEVER wait for human input.
 ```
 
+> This short block is **intentionally inlined** (not a reference to the canonical pattern in `../ralph-planning/references/autonomous-decision-pattern.md`). It gets written verbatim into the ralph-loop prompt, which runs in a fresh context that can't load skill references. The canonical version has the full dispatch templates for interactive contexts.
+
 ### 6. Write Ralph-Loop State File
 
 Run the setup script (use `${CLAUDE_PLUGIN_ROOT}`):
@@ -138,3 +140,9 @@ Do NOT quote it inside a code fence. Do NOT prefix with "Here is the prompt:". D
 - Plan template: `${CLAUDE_PLUGIN_ROOT}/skills/ralph-planning/references/plan-template.md`
 - Plan reviewer: `${CLAUDE_PLUGIN_ROOT}/agents/plan-reviewer.md`
 - Detailed executor reference: `references/build-executor.md`
+
+### Sibling skills
+
+- `../ralph-planning/SKILL.md` — Produces the plans this skill executes
+- `../story-execution/SKILL.md` — Phase 2 (build) invokes `/super-ralph:build` which uses this skill
+- `../review-fix-loop/` — Command-only skill that runs after build to clean up review findings (see its `DO_NOT_ADD_SKILL.md` note)
