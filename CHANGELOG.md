@@ -1,5 +1,13 @@
 # Super-Ralph Changelog
 
+## 0.13.1 — plugin.json schema fix + CI validation
+
+### Fixed
+- Reshaped `.claude-plugin/plugin.json` to a schema-valid form (`repository` as string URL, `dependencies` as array; dropped `optionalDependencies`). Previous npm-style shapes failed Claude Code's manifest validator, blocking installs and upgrades of 0.13.0.
+
+### Added
+- `.github/workflows/validate-manifest.yml` — blocks future npm-shape regression on every PR and push to `main`.
+
 ## 0.14.0 — Brief design mode + /expand-story
 
 ### Added
