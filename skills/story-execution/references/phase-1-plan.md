@@ -11,7 +11,12 @@
 
 **Skip detection:** Before dispatching the plan sub-agent, check if the story source has TDD tasks already embedded:
 
-- **Local mode** (`$MODE = local`): TDD tasks are already in `$STORY_DIR/be.md` and `$STORY_DIR/fe.md` (written in Step 0b). Write `$STORY_DIR/plan-result.md` with:
+- **Local mode** (`$MODE = local`): Check whether the extracted sub-story files have content. Use `detect-story-level` from `parse-local-epic.sh` to determine the story level:
+  ```bash
+  LEVEL=$(${CLAUDE_PLUGIN_ROOT}/scripts/parse-local-epic.sh detect-story-level "$EPIC_FILE" "$STORY_NUM")
+  ```
+
+  **If `LEVEL = "full"`** (story has `#### [BE]` / `[FE]` / `[INT]` subsections, so `$STORY_DIR/be.md` + `$STORY_DIR/fe.md` are non-empty): write `$STORY_DIR/plan-result.md` with:
   ```
   phase: plan
   status: DONE
@@ -22,7 +27,9 @@
   int_body_file: $STORY_DIR/int.md
   branch: super-ralph/$STORY_SLUG
   ```
-  Skip the plan sub-agent entirely. Log: "Local epic TDD tasks — skipping plan phase." Proceed to Phase 2.
+  Skip the plan sub-agent entirely. Log: "Local epic full story — TDD embedded, skipping plan phase." Proceed to Phase 2.
+
+  **If `LEVEL = "brief"`** (story has only bulleted AC, no `#### [BE/FE/INT]` subsections): fall through to the Standard Plan Dispatch path below. The plan sub-agent will read `$STORY_DIR/context.md` (which holds the brief story block including AC bullets) and synthesize TDD tasks. Log: "Local epic brief story — dispatching plan sub-agent." The `$STORY_REF` is treated like a `description` for plan purposes, with the brief AC as the source of truth.
 
 - **GitHub mode** (`$MODE = github`): existing detection path below.
 
@@ -55,6 +62,12 @@ If `HAS_TDD = 0` and no FE/BE sub-issues:
 1. Proceed with existing Phase 1 plan sub-agent (unchanged)
 
 ## Standard Plan Dispatch (when TDD is not embedded)
+
+This path runs when:
+- GitHub mode and the issue body has no `## TDD Tasks` section AND no `[BE]`/`[FE]` sibling sub-issues (existing behavior), OR
+- Local mode and `detect-story-level` returns `brief` (new — see Task 4 of the brief-design plan).
+
+The plan sub-agent reads `$STORY_DIR/context.md` for the story context (user story + AC, in Gherkin or bullets depending on source) and produces a full TDD plan.
 
 **Goal:** Create a ralph-optimized implementation plan with TDD tasks.
 
