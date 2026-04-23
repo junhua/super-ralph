@@ -10,23 +10,32 @@ Hit enter. Walk away. Come back to results.
 
 ## Install
 
+Super-ralph requires `ralph-loop` and `superpowers` from the official marketplace. They aren't auto-resolved by the plugin manifest — you must install them **before** super-ralph, or `/super-ralph:*` commands will fail at use time:
+
 ```
+# 1. Required prereqs (from the built-in claude-plugins-official marketplace)
+/plugin install ralph-loop@claude-plugins-official
+/plugin install superpowers@claude-plugins-official
+
+# 2. This plugin
 /plugin marketplace add junhua/claude-plugins
 /plugin install super-ralph@junhua-plugins
 ```
 
 Then restart Claude Code. See the full command list at [`/super-ralph:help`](./commands/help.md) and the changelog in [CHANGELOG.md](./CHANGELOG.md).
 
+> **If you installed an older version and see `Dependency "ralph-loop@junhua-plugins" is not found`:** you are on the broken v0.14.0 or v0.14.1 manifest. Run `/plugin uninstall super-ralph@junhua-plugins`, then `/plugin marketplace update junhua-plugins`, then re-install to pick up v0.14.2+ (which dropped the unsupported cross-marketplace `dependencies` field). See [CHANGELOG.md](./CHANGELOG.md) for details.
+
 ## Dependencies
 
-Super-ralph builds on other plugins. Declared in `plugin.json`:
+Super-ralph builds on other plugins. Claude Code's plugin manifest doesn't support cross-marketplace dependency references, so none of these are declared in `plugin.json` — install them manually from the marketplaces noted below:
 
-| Plugin | Required? | Why |
-|--------|-----------|-----|
-| `ralph-loop` | **required** | Stop hook that drives autonomous iteration |
-| `superpowers` | **required** | TDD, debugging, verification, parallel-agents skills |
-| `pr-review-toolkit` | optional | code-reviewer, silent-failure-hunter, pr-test-analyzer, type-design-analyzer, code-simplifier, comment-analyzer for `/review-fix` |
-| `claude-in-chrome` | optional | browser automation for `/verify` |
+| Plugin | Marketplace | Required? | Why |
+|--------|-------------|-----------|-----|
+| `ralph-loop` | `claude-plugins-official` | **required** | Stop hook that drives autonomous iteration |
+| `superpowers` | `claude-plugins-official` | **required** | TDD, debugging, verification, parallel-agents skills |
+| `pr-review-toolkit` | `claude-plugins-official` | optional | code-reviewer, silent-failure-hunter, pr-test-analyzer, type-design-analyzer, code-simplifier, comment-analyzer for `/review-fix` |
+| `claude-in-chrome` | `claude-plugins-official` | optional | browser automation for `/verify` |
 
 ## What It Does
 
